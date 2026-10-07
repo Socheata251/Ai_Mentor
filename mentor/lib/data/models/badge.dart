@@ -1,1 +1,0 @@
-// TODO: badge model.
