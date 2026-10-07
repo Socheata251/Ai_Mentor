@@ -15,7 +15,7 @@ import 'package:mentor/features/settings/screens/settings_screen.dart';
 import 'package:mentor/core/theme/app_theme.dart';
 import 'package:mentor/core/widgets/brand_logo.dart';
 import 'package:mentor/screens/onboarding_screen.dart';
-import 'package:mentor/screens/home_screen.dart';
+import 'package:mentor/features/home/screens/home_screen.dart';
 
 Widget _testApp(Widget home, {ThemeData? theme}) => MaterialApp(
   theme: theme ?? AppTheme.light,

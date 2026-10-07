@@ -4,7 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/brand_logo.dart';
-import 'home_screen.dart';
+import '../features/home/screens/home_screen.dart';
 
 class OnboardData {
   final String bold, light, subtitle;
