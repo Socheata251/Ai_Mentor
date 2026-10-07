@@ -12,14 +12,12 @@ import '../widgets/exam_banner.dart';
 import '../widgets/library_search_bar.dart';
 import '../widgets/semester_filter_bar.dart';
 import '../widgets/university_card.dart';
+import '../../../core/widgets/app_shell.dart';
 
 /// Library: curriculum modules with search + semester filter.
-/// Pass [onMenu] to show a menu button (opens a drawer); without it the
-/// header shows a back arrow.
+/// The ☰ menu button comes from [AppShell].
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key, this.onMenu});
-
-  final VoidCallback? onMenu;
+  const LibraryScreen({super.key});
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
@@ -50,7 +48,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget build(BuildContext context) {
     final c = context.colors;
 
-    return Scaffold(
+    return AppShell(selectedIndex: 4, child: Scaffold(
       body: DecoratedBox(
         decoration: BoxDecoration(gradient: c.pageGradient),
         child: SafeArea(
@@ -60,7 +58,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               constraints: const BoxConstraints(maxWidth: 760),
               child: Column(
                 children: [
-                  _Header(onMenu: widget.onMenu),
+                  const _Header(),
                   Expanded(
                     child: ListenableBuilder(
                       listenable: _library,
@@ -81,7 +79,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildList() {
@@ -145,8 +143,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
 // ---------------------------------------------------------------------
 class _Header extends StatelessWidget {
-  const _Header({this.onMenu});
-  final VoidCallback? onMenu;
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
@@ -155,13 +152,7 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Row(
         children: [
-          RoundIconButton(
-            icon: onMenu != null
-                ? Icons.menu_rounded
-                : Icons.arrow_back_ios_new_rounded,
-            tooltip: onMenu != null ? 'Menu' : 'Back',
-            onTap: onMenu ?? () => Navigator.maybePop(context),
-          ),
+          const AppMenuButton(keepSpace: true),
           Expanded(
             child: Text(
               'Library',

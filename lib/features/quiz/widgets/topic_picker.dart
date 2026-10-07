@@ -7,6 +7,7 @@ import '../../../core/widgets/app_pill.dart';
 import '../../../data/models/quiz.dart';
 import '../providers/quiz_controller.dart';
 import 'quiz_history.dart';
+import '../../../core/widgets/app_shell.dart';
 
 /// "Choose a Quiz Topic" - the page shown before a quiz starts.
 ///
@@ -124,7 +125,7 @@ class _TopicPickerState extends State<TopicPicker> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
                 children: [
-                  _Header(onBack: () => Navigator.maybePop(context)),
+                  const _Header(),
                   const SizedBox(height: 14),
                   Row(
                     children: [
@@ -247,20 +248,14 @@ class _TopicPickerState extends State<TopicPicker> {
 // ---------------------------------------------------------------------------
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
-
-  final VoidCallback onBack;
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     return Row(
       children: [
-        IconButton(
-          tooltip: 'Back',
-          onPressed: onBack,
-          icon: Icon(Icons.arrow_back_rounded, color: c.textStrong),
-        ),
+        const AppMenuButton(),
         const Spacer(),
         Container(
           width: 36,

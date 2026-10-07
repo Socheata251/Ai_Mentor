@@ -2,29 +2,30 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/router/app_nav.dart';
 import '../../../core/router/smooth_page_route.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/app_shell.dart';
 import '../../../core/widgets/stagger_in.dart';
-import '../../../data/repositories/chat_conversation_history.dart';
 import '../../ai_tutor/screens/ai_tutor_screen.dart';
 import '../../ai_tutor/screens/chat_prompt_history_screen.dart';
-import '../../library/screens/library_screen.dart';
-import '../../progress/screens/progress_screen.dart';
-import '../../quiz/screens/quiz_screen.dart';
 import '../../schedule/screens/schedule_screen.dart';
 import '../../settings/screens/settings_screen.dart';
-import '../widgets/app_drawer.dart';
 import '../widgets/home_back_glow.dart';
 import '../widgets/home_chat_input_bar.dart';
 import '../widgets/home_content.dart';
 import '../widgets/home_top_bar.dart';
+import '../../../data/repositories/user_session.dart';
 
 /// Home dashboard. Layout pieces live in `features/home/widgets/`.
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key, this.userName = 'Bunthoeun'});
+  const DashboardScreen({super.key, this.userName});
 
-  final String userName;
+  final String? userName;
+
+  /// The name to show: the one passed in, else the signed-in student.
+  String get displayName => userName ?? UserSession.instance.name;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -68,11 +69,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   });
 
   final _scroll = ScrollController();
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  // Which drawer item is highlighted. Only the menu list listens to it.
-  final ValueNotifier<int> _drawerIndex = ValueNotifier<int>(0);
-
   String get _greeting {
     final h = DateTime.now().hour;
     if (h < 12) return 'Morning';
@@ -95,7 +91,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     _intro.dispose();
     _loop.dispose();
     _scroll.dispose();
-    _drawerIndex.dispose();
     super.dispose();
   }
 
@@ -103,63 +98,20 @@ class _DashboardScreenState extends State<DashboardScreen>
   // Navigation
   // ---------------------------------------------------------------
 
-  void _openDrawer() => _scaffoldKey.currentState?.openDrawer();
-
-  void _onMenuSelect(int i) {
-    _drawerIndex.value = i;
-    _scaffoldKey.currentState?.closeDrawer();
-    switch (i) {
-      case 1:
-        _push(AiTutorScreen(userName: widget.userName));
-      case 2:
-        _push(const QuizScreen());
-      case 3:
-        _push(const ChatPromptHistoryScreen());
-      case 4:
-        _push(const LibraryScreen());
-      case 5:
-        _push(ProgressScreen(userName: widget.userName));
-      case 6:
-        _push(const ScheduleScreen());
-      case 7:
-        _push(const SettingsScreen());
-    }
-  }
-
-  /// Open a screen, then highlight "Home" again when we come back.
+  /// Open a screen on top of Home (the menu itself lives in [AppShell]).
   void _push(Widget screen) {
-    Navigator.push(
-      context,
-      smoothPageRoute(builder: (_) => screen),
-    ).then((_) => _drawerIndex.value = 0);
+    Navigator.push(context, smoothPageRoute(builder: (_) => screen));
   }
 
   void _openSchedule() => _push(const ScheduleScreen());
   void _openHistory() => _push(const ChatPromptHistoryScreen());
   void _openSettings() => _push(const SettingsScreen());
 
-  /// Start a fresh, empty chat (like "New chat" in ChatGPT).
-  void _newChat() {
-    _scaffoldKey.currentState?.closeDrawer();
-    _push(AiTutorScreen(userName: widget.userName, useDemo: false));
-  }
-
-  /// Re-open a saved chat from the "Recent chats" list.
-  void _openChat(ChatConversation chat) {
-    _scaffoldKey.currentState?.closeDrawer();
-    _push(
-      AiTutorScreen(
-        userName: widget.userName,
-        useDemo: false,
-        conversationId: chat.id,
-        initialMessages: chat.messages,
-      ),
-    );
-  }
+  void _newChat() => AppNav.newChat(context, userName: widget.displayName);
 
   void _openTutorWithAsk(String question) => _push(
     AiTutorScreen(
-      userName: widget.userName,
+      userName: widget.displayName,
       useDemo: false,
       initialPrompt: question,
     ),
@@ -173,36 +125,17 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget build(BuildContext context) {
     final colors = context.colors;
     final size = context.screenSize;
-    final hasSidebar = size.isExpanded;
 
-    return Scaffold(
-      key: _scaffoldKey,
-      // Desktop shows a permanent sidebar instead of the slide-in drawer.
-      drawer: hasSidebar
-          ? null
-          : AppDrawer(
-              userName: widget.userName,
-              selected: _drawerIndex,
-              onSelect: _onMenuSelect,
-              onNewChat: _newChat,
-              onOpenChat: _openChat,
-            ),
-      body: Container(
-        decoration: BoxDecoration(gradient: colors.pageGradient),
-        child: SafeArea(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (hasSidebar)
-                HomeSideBar(
-                  userName: widget.userName,
-                  selected: _drawerIndex,
-                  onSelect: _onMenuSelect,
-                  onNewChat: _newChat,
-                  onOpenChat: _openChat,
-                ),
-              Expanded(child: _buildMain(size)),
-            ],
+    // The drawer / sidebar comes from AppShell (same on every screen).
+    return ListenableBuilder(
+      listenable: UserSession.instance, // refresh greeting after profile edit
+      builder: (context, _) => AppShell(
+        selectedIndex: 0,
+        userName: widget.displayName,
+        child: Scaffold(
+          body: Container(
+            decoration: BoxDecoration(gradient: colors.pageGradient),
+            child: SafeArea(child: _buildMain(size)),
           ),
         ),
       ),
@@ -256,11 +189,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: StaggerIn(
                     animation: _fades[0],
                     child: HomeTopBar(
-                      onMenu: _openDrawer,
                       onNewChat: _newChat,
                       onHistory: _openHistory,
                       onSettings: _openSettings,
-                      showMenu: !size.isExpanded,
                       horizontalPadding: side,
                     ),
                   ),
@@ -272,7 +203,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     fades: _fades,
                     logoFloat: _logoFloat,
                     greeting: _greeting,
-                    userName: widget.userName,
+                    userName: widget.displayName,
                     onViewSchedule: _openSchedule,
                   ),
                 ),

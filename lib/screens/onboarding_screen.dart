@@ -4,6 +4,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/brand_logo.dart';
+import '../data/repositories/user_session.dart';
+import '../features/auth/screens/sign_in_screen.dart';
 import '../features/home/screens/home_screen.dart';
 
 class OnboardData {
@@ -62,7 +64,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void onStart() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      MaterialPageRoute(
+        builder: (_) => UserSession.instance.isSignedIn
+            ? DashboardScreen(userName: UserSession.instance.name)
+            : const SignInScreen(),
+      ),
     );
   }
 

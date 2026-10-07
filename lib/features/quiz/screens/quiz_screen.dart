@@ -8,6 +8,7 @@ import '../../../data/models/quiz.dart';
 import '../providers/quiz_controller.dart';
 import '../widgets/quiz_repository.dart';
 import '../widgets/topic_picker.dart';
+import '../../../core/widgets/app_shell.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key, this.initialTopicId});
@@ -123,7 +124,7 @@ class _QuizScreenState extends State<QuizScreen> {
     final quiz = _quiz;
     final summary = _summary;
 
-    return Scaffold(
+    return AppShell(selectedIndex: 2, child: Scaffold(
       backgroundColor: c.page,
       body: DecoratedBox(
         decoration: BoxDecoration(gradient: c.pageGradient),
@@ -175,7 +176,7 @@ class _QuizScreenState extends State<QuizScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

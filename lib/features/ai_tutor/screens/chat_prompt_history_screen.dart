@@ -8,6 +8,7 @@ import '../../../data/repositories/chat_conversation_history.dart';
 import '../../quiz/screens/quiz_screen.dart';
 import '../../quiz/widgets/quiz_history.dart';
 import 'ai_tutor_screen.dart';
+import '../../../core/widgets/app_shell.dart';
 
 enum _Filter { all, chats, quizzes }
 
@@ -65,7 +66,6 @@ class _ChatPromptHistoryScreenState extends State<ChatPromptHistoryScreen> {
       context,
       smoothPageRoute<void>(
         builder: (_) => AiTutorScreen(
-          userName: 'Bunthoeun',
           topic: 'Chat history',
           useDemo: false,
           conversationId: conversation.id,
@@ -143,7 +143,7 @@ class _ChatPromptHistoryScreenState extends State<ChatPromptHistoryScreen> {
   Widget build(BuildContext context) {
     final c = context.colors;
 
-    return Scaffold(
+    return AppShell(selectedIndex: 3, child: Scaffold(
       backgroundColor: c.page,
       body: SafeArea(
         child: AnimatedBuilder(
@@ -161,7 +161,7 @@ class _ChatPromptHistoryScreenState extends State<ChatPromptHistoryScreen> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               children: [
-                _TopBar(onBack: () => Navigator.maybePop(context)),
+                const _TopBar(),
                 const SizedBox(height: 4),
                 _SearchField(
                   controller: _search,
@@ -244,7 +244,7 @@ class _ChatPromptHistoryScreenState extends State<ChatPromptHistoryScreen> {
           },
         ),
       ),
-    );
+    ));
   }
 
   // ---- date helpers ----------------------------------------------------
@@ -276,24 +276,15 @@ class _ChatPromptHistoryScreenState extends State<ChatPromptHistoryScreen> {
 // ---------------------------------------------------------------------------
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack});
-
-  final VoidCallback onBack;
+  const _TopBar();
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     return Row(
       children: [
-        IconButton(
-          tooltip: 'Back',
-          onPressed: onBack,
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 18,
-            color: c.textStrong,
-          ),
-        ),
+        const AppMenuButton(),
+        const SizedBox(width: 12),
         Expanded(
           child: Text(
             'Chat & Practice History',

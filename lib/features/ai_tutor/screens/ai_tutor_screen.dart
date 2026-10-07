@@ -17,6 +17,8 @@ import '../widgets/suggestion_chips.dart';
 import '../widgets/typing_indicator.dart';
 import '../widgets/user_bubble.dart';
 import 'chat_prompt_history_screen.dart';
+import '../../../core/widgets/app_shell.dart';
+import '../../../data/repositories/user_session.dart';
 
 /// AI Tutor chat. Open it with:
 ///   Navigator.push(context, MaterialPageRoute(
@@ -24,7 +26,7 @@ import 'chat_prompt_history_screen.dart';
 class AiTutorScreen extends StatefulWidget {
   const AiTutorScreen({
     super.key,
-    this.userName = 'Bunthoeun',
+    this.userName,
     this.topic = 'JavaScript & Async Programming',
     this.useDemo = true,
     this.initialPrompt,
@@ -32,7 +34,10 @@ class AiTutorScreen extends StatefulWidget {
     this.initialMessages = const [],
   });
 
-  final String userName;
+  final String? userName;
+
+  /// The name to show: the one passed in, else the signed-in student.
+  String get displayName => userName ?? UserSession.instance.name;
   final String topic;
   final bool useDemo;
   final String? initialPrompt;
@@ -134,7 +139,7 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
       context,
       smoothPageRoute<void>(
         builder: (_) => AiTutorScreen(
-          userName: widget.userName,
+          userName: widget.displayName,
           topic: widget.topic,
           useDemo: false,
         ),
@@ -161,7 +166,10 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
     final c = context.colors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
+    return AppShell(
+      selectedIndex: 1,
+      userName: widget.displayName,
+      child: Scaffold(
       backgroundColor: isDark ? c.page : const Color(0xFFEAF0F7),
       body: DecoratedBox(
         decoration: BoxDecoration(
@@ -202,12 +210,7 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
                   children: [
                     AppHeader(
                       horizontalPadding: 12,
-                      leading: HeaderButton(
-                        icon: Icons.arrow_back_ios_new_rounded,
-                        iconSize: 17,
-                        tooltip: 'Back',
-                        onTap: () => Navigator.maybePop(context),
-                      ),
+                      leading: AppMenuButton.leadingOf(context),
                       title: _ChatTitle(topic: widget.topic),
                       actions: [
                         HeaderButton(
@@ -321,13 +324,14 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 
   Widget _buildList() {
     final messages = _chat.messages;
     if (messages.isEmpty && !_chat.isTyping) {
-      return _EmptyState(name: widget.userName);
+      return _EmptyState(name: widget.displayName);
     }
 
     final typing = _chat.isTyping;
@@ -351,10 +355,10 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
         return KeyedSubtree(
           key: ValueKey(m.id),
           child: m.role == MessageRole.user
-              ? UserBubble(message: m, userName: widget.userName)
+              ? UserBubble(message: m, userName: widget.displayName)
               : AiMessageCard(
                   message: m,
-                  userName: widget.userName,
+                  userName: widget.displayName,
                   quickAnswer: _chat.quickAnswerFor(m.id),
                   onQuickAnswer: (index) => _chat.answerQuickCheck(m.id, index),
                 ),

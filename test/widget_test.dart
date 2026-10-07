@@ -8,6 +8,10 @@ import 'package:mentor/features/ai_tutor/screens/ai_tutor_screen.dart';
 import 'package:mentor/features/ai_tutor/screens/chat_prompt_history_screen.dart';
 import 'package:mentor/data/services/ai_service.dart';
 import 'package:mentor/data/models/message.dart';
+import 'package:mentor/data/models/user.dart';
+import 'package:mentor/data/repositories/user_session.dart';
+import 'package:mentor/features/auth/screens/sign_in_screen.dart';
+import 'package:mentor/features/profile/screens/profile_screen.dart';
 import 'package:mentor/features/progress/screens/progress_screen.dart';
 import 'package:mentor/features/quiz/screens/quiz_screen.dart';
 import 'package:mentor/features/schedule/screens/schedule_screen.dart';
@@ -41,7 +45,11 @@ class _TestAssetBundle extends CachingAssetBundle {
 }
 
 void main() {
-  testWidgets('Get Started navigates to the home dashboard', (tester) async {
+  setUp(() => UserSession.instance.signOut());
+
+  testWidgets('Get Started opens sign in when nobody is signed in', (
+    tester,
+  ) async {
     await tester.pumpWidget(_testApp(const OnboardingScreen()));
 
     expect(find.text('Get Started'), findsOneWidget);
@@ -51,7 +59,68 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
+    expect(find.byType(SignInScreen), findsOneWidget);
+  });
+
+  testWidgets('Get Started opens Home when already signed in', (tester) async {
+    UserSession.instance.signIn(
+      const AppUser(name: 'Dara', email: 'dara@school.edu'),
+    );
+    await tester.pumpWidget(_testApp(const OnboardingScreen()));
+
+    final state = tester.state(find.byType(OnboardingScreen));
+    (state as dynamic).onStart();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
     expect(find.byType(DashboardScreen), findsOneWidget);
+  });
+
+  testWidgets('Sign in validates the form, then opens Home', (tester) async {
+    await tester.pumpWidget(_testApp(const SignInScreen()));
+
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    expect(find.text('Please enter your name'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextFormField).at(0), 'Dara');
+    await tester.enterText(find.byType(TextFormField).at(1), 'not-an-email');
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    expect(find.text('Enter a valid email address'), findsOneWidget);
+
+    await tester.enterText(
+      find.byType(TextFormField).at(1),
+      'dara@school.edu',
+    );
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    expect(UserSession.instance.name, 'Dara');
+  });
+
+  testWidgets('Profile screen saves changes to the session', (tester) async {
+    UserSession.instance.signIn(
+      const AppUser(name: 'Dara', email: 'dara@school.edu'),
+    );
+    await tester.pumpWidget(_testApp(const ProfileScreen()));
+
+    await tester.enterText(find.byType(TextFormField).first, 'Dara Sok');
+    await tester.ensureVisible(find.text('Save changes'));
+    await tester.tap(find.text('Save changes'));
+    await tester.pump();
+
+    expect(UserSession.instance.name, 'Dara Sok');
+  });
+
+  test('Signing out clears the session', () {
+    UserSession.instance.signIn(const AppUser(name: 'Dara', email: 'd@x.co'));
+    expect(UserSession.instance.isSignedIn, isTrue);
+    UserSession.instance.signOut();
+    expect(UserSession.instance.isSignedIn, isFalse);
+    expect(UserSession.instance.name, UserSession.fallbackName);
   });
 
   testWidgets('Settings screen renders its preferences', (tester) async {

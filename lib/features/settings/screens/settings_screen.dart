@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/router/smooth_page_route.dart';
+import '../../../data/repositories/user_session.dart';
 import '../../../main.dart' show themeMode;
+import '../../auth/screens/sign_in_screen.dart';
+import '../../profile/screens/profile_screen.dart';
 import '../providers/settings_controller.dart';
+import '../../../core/widgets/app_shell.dart';
 
 /// Orange used for the toggles in your design.
 const _accent = Color(0xFFD2693A);
@@ -13,13 +18,17 @@ const kAppVersionLabel = 'IT Mentor AI • Version 2.4 (iOS Build 104)';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({
     super.key,
-    this.name = 'Sreylis Student',
-    this.email = 'Sreylis@student.edu',
+    this.name,
+    this.email,
     this.onSignOut,
   });
 
-  final String name;
-  final String email;
+  /// Optional overrides. By default the signed-in student is shown.
+  final String? name;
+  final String? email;
+
+  /// Optional override. By default signing out clears the session and opens
+  /// the sign-in screen.
   final VoidCallback? onSignOut;
   Future<void> _pick(
     BuildContext context, {
@@ -91,11 +100,13 @@ class SettingsScreen extends StatelessWidget {
 
     if (onSignOut != null) {
       onSignOut!();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Signed out (connect your sign-in here)')),
-      );
+      return;
     }
+    UserSession.instance.signOut();
+    Navigator.of(context).pushAndRemoveUntil(
+      smoothPageRoute<void>(builder: (_) => const SignInScreen()),
+      (route) => false,
+    );
   }
   @override
   Widget build(BuildContext context) {
@@ -104,7 +115,7 @@ class SettingsScreen extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final divider = theme.colorScheme.outlineVariant.withValues(alpha: 0.5);
 
-    return Scaffold(
+    return AppShell(selectedIndex: 7, child: Scaffold(
       body: DecoratedBox(
         decoration: BoxDecoration(
           color: isDark ? theme.scaffoldBackgroundColor : null,
@@ -152,10 +163,13 @@ class SettingsScreen extends StatelessWidget {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           child: ListenableBuilder(
-                            listenable: appSettings,
+                            listenable: Listenable.merge([appSettings, UserSession.instance]),
                             builder: (context, _) => Column(
                               children: [
-                                _ProfileTile(name: name, email: email),
+                                _ProfileTile(
+                                  name: name ?? UserSession.instance.name,
+                                  email: email ?? UserSession.instance.email,
+                                ),
 
                                 // ---- Appearance ----
                                 _Divider(color: divider),
@@ -272,7 +286,7 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -280,7 +294,7 @@ class SettingsScreen extends StatelessWidget {
 // Pieces
 // =====================================================================
 
-/// Back arrow + title + "IT MENTOR AI" pill.
+/// ☰ menu button + title + "IT MENTOR AI" pill.
 class _Header extends StatelessWidget {
   const _Header();
 
@@ -289,18 +303,7 @@ class _Header extends StatelessWidget {
     final c = context.colors;
     return Row(
       children: [
-        InkResponse(
-          radius: 24,
-          onTap: () => Navigator.maybePop(context),
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Icon(
-              Icons.chevron_left_rounded,
-              size: 28,
-              color: c.textStrong,
-            ),
-          ),
-        ),
+        const AppMenuButton(),
         const SizedBox(width: 4),
         Text(
           'Settings',
@@ -364,9 +367,10 @@ class _ProfileTile extends StatelessWidget {
     final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
 
     return InkWell(
-      onTap: () {
-        // TODO: open "edit profile"
-      },
+      onTap: () => Navigator.push(
+        context,
+        smoothPageRoute<void>(builder: (_) => const ProfileScreen()),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         child: Row(

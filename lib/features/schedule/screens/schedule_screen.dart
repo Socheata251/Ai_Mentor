@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/round_icon_button.dart';
+import '../../../core/widgets/app_shell.dart';
 
 class ScheduleScreen extends StatelessWidget {
   const ScheduleScreen({super.key});
@@ -50,7 +51,7 @@ class ScheduleScreen extends StatelessWidget {
       ),
     ];
 
-    return Scaffold(
+    return AppShell(selectedIndex: 6, child: Scaffold(
       body: DecoratedBox(
         decoration: BoxDecoration(gradient: colors.pageGradient),
         child: SafeArea(
@@ -63,11 +64,7 @@ class ScheduleScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                     child: Row(
                       children: [
-                        RoundIconButton(
-                          icon: Icons.arrow_back_ios_new_rounded,
-                          tooltip: 'Back',
-                          onTap: () => Navigator.maybePop(context),
-                        ),
+                        const AppMenuButton(keepSpace: true),
                         Expanded(
                           child: Text(
                             'Scheduled',
@@ -248,7 +245,7 @@ class ScheduleScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

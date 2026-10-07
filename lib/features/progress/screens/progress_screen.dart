@@ -4,11 +4,16 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/router/smooth_page_route.dart';
 import '../../ai_tutor/screens/ai_tutor_screen.dart';
 import '../../quiz/screens/quiz_screen.dart';
+import '../../../core/widgets/app_shell.dart';
+import '../../../data/repositories/user_session.dart';
 
 class ProgressScreen extends StatefulWidget {
-  const ProgressScreen({super.key, this.userName = 'Bunthoeun'});
+  const ProgressScreen({super.key, this.userName});
 
-  final String userName;
+  final String? userName;
+
+  /// The name to show: the one passed in, else the signed-in student.
+  String get displayName => userName ?? UserSession.instance.name;
 
   @override
   State<ProgressScreen> createState() => _ProgressScreenState();
@@ -30,7 +35,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       context,
       smoothPageRoute(
         builder: (_) => AiTutorScreen(
-          userName: widget.userName,
+          userName: widget.displayName,
           useDemo: false,
           topic: 'Recursion',
           initialPrompt: 'Help me review recursion. Start with a hint.',
@@ -51,16 +56,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final colors = context.colors;
     final theme = Theme.of(context);
 
-    return Container(
+    return AppShell(
+      selectedIndex: 5,
+      userName: widget.displayName,
+      child: Container(
       decoration: BoxDecoration(gradient: colors.pageGradient),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          leading: IconButton(
-            tooltip: 'Back',
-            onPressed: () => Navigator.maybePop(context),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          ),
+          automaticallyImplyLeading: false,
+          leading: AppMenuButton.hasSidebarOf(context)
+              ? null
+              : const Center(child: AppMenuButton()),
           titleSpacing: 0,
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,6 +168,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }
