@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/brand_logo.dart';
 import '../../../core/widgets/pressable.dart';
+import '../../../data/repositories/chat_conversation_history.dart';
 
 /// Slide-in drawer (phone + tablet).
 class AppDrawer extends StatelessWidget {
@@ -12,11 +13,15 @@ class AppDrawer extends StatelessWidget {
     required this.userName,
     required this.selected,
     required this.onSelect,
+    required this.onNewChat,
+    required this.onOpenChat,
   });
 
   final String userName;
   final ValueListenable<int> selected;
   final ValueChanged<int> onSelect;
+  final VoidCallback onNewChat;
+  final ValueChanged<ChatConversation> onOpenChat;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +36,8 @@ class AppDrawer extends StatelessWidget {
         userName: userName,
         selected: selected,
         onSelect: onSelect,
+        onNewChat: onNewChat,
+        onOpenChat: onOpenChat,
       ),
     );
   }
@@ -43,11 +50,15 @@ class HomeSideBar extends StatelessWidget {
     required this.userName,
     required this.selected,
     required this.onSelect,
+    required this.onNewChat,
+    required this.onOpenChat,
   });
 
   final String userName;
   final ValueListenable<int> selected;
   final ValueChanged<int> onSelect;
+  final VoidCallback onNewChat;
+  final ValueChanged<ChatConversation> onOpenChat;
 
   @override
   Widget build(BuildContext context) {
@@ -62,24 +73,30 @@ class HomeSideBar extends StatelessWidget {
         userName: userName,
         selected: selected,
         onSelect: onSelect,
+        onNewChat: onNewChat,
+        onOpenChat: onOpenChat,
       ),
     );
   }
 }
 
-/// The menu itself: header, items, version. Used by both [AppDrawer] and
-/// [HomeSideBar], so edit the menu here once.
+/// The menu itself: header, New chat, items, recent chats, version.
+/// Used by both [AppDrawer] and [HomeSideBar], so edit the menu here once.
 class DrawerMenu extends StatelessWidget {
   const DrawerMenu({
     super.key,
     required this.userName,
     required this.selected,
     required this.onSelect,
+    required this.onNewChat,
+    required this.onOpenChat,
   });
 
   final String userName;
   final ValueListenable<int> selected;
   final ValueChanged<int> onSelect;
+  final VoidCallback onNewChat;
+  final ValueChanged<ChatConversation> onOpenChat;
 
   static const _items = <(IconData, String)>[
     (Icons.home_outlined, 'Home'),
@@ -152,29 +169,98 @@ class DrawerMenu extends StatelessWidget {
             ),
           ),
 
-          // Items (ListView.builder: built lazily)
+          // New chat button (like ChatGPT)
+          Pressable(
+            scale: 0.97,
+            onTap: onNewChat,
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: colors.ink,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.edit_square, size: 18, color: colors.onInk),
+                  const SizedBox(width: 8),
+                  Text(
+                    'New chat',
+                    style: TextStyle(
+                      color: colors.onInk,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Menu items + recent chats
           Expanded(
             child: ValueListenableBuilder<int>(
               valueListenable: selected,
-              builder: (context, sel, _) => ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                itemCount: _items.length,
-                itemBuilder: (context, i) {
-                  final (icon, label) = _items[i];
-                  return Column(
+              builder: (context, sel, _) => ListenableBuilder(
+                listenable: ChatConversationHistory.instance,
+                builder: (context, _) {
+                  final recent = ChatConversationHistory.instance.conversations
+                      .take(8)
+                      .toList();
+
+                  Widget tile(int i) => DrawerTile(
+                    icon: _items[i].$1,
+                    label: _items[i].$2,
+                    selected: i == sel,
+                    onTap: () => onSelect(i),
+                  );
+
+                  return ListView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     children: [
-                      // thin divider before Settings
-                      if (i == _items.length - 1)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Divider(height: 1, color: colors.border),
+                      for (var i = 0; i < _items.length - 1; i++) tile(i),
+
+                      // Recent chats
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 16, 10, 6),
+                        child: Text(
+                          'RECENT CHATS',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                            color: colors.textMuted,
+                          ),
                         ),
-                      DrawerTile(
-                        icon: icon,
-                        label: label,
-                        selected: i == sel,
-                        onTap: () => onSelect(i),
                       ),
+                      if (recent.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
+                          child: Text(
+                            'No chats yet. Tap New chat to start.',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: colors.textMuted,
+                            ),
+                          ),
+                        )
+                      else
+                        for (final chat in recent)
+                          DrawerChatRow(
+                            title: chat.title,
+                            onTap: () => onOpenChat(chat),
+                          ),
+
+                      // thin divider before Settings
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Divider(height: 1, color: colors.border),
+                      ),
+                      tile(_items.length - 1),
                     ],
                   );
                 },
@@ -252,6 +338,44 @@ class DrawerTile extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: selected ? colors.onInk : colors.textStrong,
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One recent chat in the drawer.
+class DrawerChatRow extends StatelessWidget {
+  const DrawerChatRow({super.key, required this.title, required this.onTap});
+
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Pressable(
+      scale: 0.98,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        child: Row(
+          children: [
+            Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 18,
+              color: colors.textMuted,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13.5, color: colors.textStrong),
               ),
             ),
           ],

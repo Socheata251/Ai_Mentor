@@ -6,6 +6,7 @@ import '../../../core/router/smooth_page_route.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/stagger_in.dart';
+import '../../../data/repositories/chat_conversation_history.dart';
 import '../../ai_tutor/screens/ai_tutor_screen.dart';
 import '../../ai_tutor/screens/chat_prompt_history_screen.dart';
 import '../../library/screens/library_screen.dart';
@@ -134,6 +135,27 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _openSchedule() => _push(const ScheduleScreen());
+  void _openHistory() => _push(const ChatPromptHistoryScreen());
+  void _openSettings() => _push(const SettingsScreen());
+
+  /// Start a fresh, empty chat (like "New chat" in ChatGPT).
+  void _newChat() {
+    _scaffoldKey.currentState?.closeDrawer();
+    _push(AiTutorScreen(userName: widget.userName, useDemo: false));
+  }
+
+  /// Re-open a saved chat from the "Recent chats" list.
+  void _openChat(ChatConversation chat) {
+    _scaffoldKey.currentState?.closeDrawer();
+    _push(
+      AiTutorScreen(
+        userName: widget.userName,
+        useDemo: false,
+        conversationId: chat.id,
+        initialMessages: chat.messages,
+      ),
+    );
+  }
 
   void _openTutorWithAsk(String question) => _push(
     AiTutorScreen(
@@ -162,6 +184,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               userName: widget.userName,
               selected: _drawerIndex,
               onSelect: _onMenuSelect,
+              onNewChat: _newChat,
+              onOpenChat: _openChat,
             ),
       body: Container(
         decoration: BoxDecoration(gradient: colors.pageGradient),
@@ -174,6 +198,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   userName: widget.userName,
                   selected: _drawerIndex,
                   onSelect: _onMenuSelect,
+                  onNewChat: _newChat,
+                  onOpenChat: _openChat,
                 ),
               Expanded(child: _buildMain(size)),
             ],
@@ -231,6 +257,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                     animation: _fades[0],
                     child: HomeTopBar(
                       onMenu: _openDrawer,
+                      onNewChat: _newChat,
+                      onHistory: _openHistory,
+                      onSettings: _openSettings,
                       showMenu: !size.isExpanded,
                       horizontalPadding: side,
                     ),
