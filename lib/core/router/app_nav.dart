@@ -20,6 +20,9 @@ import 'smooth_page_route.dart';
 class AppNav {
   AppNav._();
 
+  /// Lets non-UI code (e.g. the API client) change screens.
+  static final navigatorKey = GlobalKey<NavigatorState>();
+
   static Widget? _screenFor(int index, String userName) => switch (index) {
     1 => AiTutorScreen(userName: userName),
     2 => const QuizScreen(),

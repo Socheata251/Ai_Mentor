@@ -11,10 +11,11 @@ import '../../../data/services/ai_service.dart';
 /// Move to Riverpod later by wrapping this class in a provider.
 class AiTutorController extends ChangeNotifier {
   AiTutorController({
-    this.service = const MockAiService(),
+    AiService? service,
     List<ChatMessage> initial = const [],
     String? conversationId,
-  }) : _messages = List.of(initial),
+  }) : service = service ?? AiServices.current,
+       _messages = List.of(initial),
        conversationId = conversationId ?? ChatMessage.newId();
 
   final AiService service;

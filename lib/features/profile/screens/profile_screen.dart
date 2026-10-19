@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_header.dart';
 import '../../../data/models/user.dart';
+import '../../../core/constants/api_config.dart';
+import '../../../core/network/api_client.dart';
 import '../../../data/repositories/user_session.dart';
+import '../../../data/services/auth_service.dart';
 
 /// Edit the student profile. This is a step INSIDE Settings, so it keeps a
 /// back arrow (the main screens use the ☰ menu instead).
@@ -32,17 +35,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  void _save() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    UserSession.instance.updateProfile(
-      _original.copyWith(
+  bool _saving = false;
+
+  Future<void> _save() async {
+    if (_saving || !(_formKey.currentState?.validate() ?? false)) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
+    try {
+      await AuthService.instance.updateProfile(
         name: _name.text.trim(),
-        email: _email.text.trim(),
         university: _university.text.trim(),
         semester: _semester,
-      ),
-    );
-    final messenger = ScaffoldMessenger.of(context);
+      );
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _saving = false);
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
+    if (!mounted) return;
     Navigator.of(context).maybePop();
     messenger.showSnackBar(const SnackBar(content: Text('Profile saved')));
   }
@@ -114,6 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _label('Email'),
                           TextFormField(
                             controller: _email,
+                            readOnly: ApiConfig.useBackend, // email is your login id
                             keyboardType: TextInputType.emailAddress,
                             validator: (v) {
                               final value = v?.trim() ?? '';

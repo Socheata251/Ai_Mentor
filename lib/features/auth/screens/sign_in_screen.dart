@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/brand_logo.dart';
-import '../../../data/models/user.dart';
-import '../../../data/repositories/user_session.dart';
+import '../../../data/services/auth_service.dart';
 import '../../home/screens/home_screen.dart';
+import 'forgot_password_screen.dart';
+
+enum _Mode { login, register }
 
 /// First screen after onboarding (and after "Sign out").
-/// Creates the local student profile, then opens Home.
+/// Sign in with email + password, or create a new account.
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -19,11 +22,20 @@ class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _email = TextEditingController();
+  final _password = TextEditingController();
+
+  _Mode _mode = _Mode.login;
+  bool _busy = false;
+  bool _hidePassword = true;
+  String? _error;
+
+  bool get _isLogin => _mode == _Mode.login;
 
   @override
   void dispose() {
     _name.dispose();
     _email.dispose();
+    _password.dispose();
     super.dispose();
   }
 
@@ -37,22 +49,52 @@ class _SignInScreenState extends State<SignInScreen> {
     return ok ? null : 'Enter a valid email address';
   }
 
-  void _continue() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    final user = AppUser(name: _name.text.trim(), email: _email.text.trim());
-    UserSession.instance.signIn(user);
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => DashboardScreen(userName: user.name),
-      ),
-      (route) => false,
-    );
+  String? _validatePassword(String? v) {
+    final value = v ?? '';
+    if (value.isEmpty) return 'Please enter your password';
+    if (!_isLogin && value.length < 8) return 'Use at least 8 characters';
+    return null;
+  }
+
+  void _switchMode() => setState(() {
+        _mode = _isLogin ? _Mode.register : _Mode.login;
+        _error = null;
+      });
+
+  Future<void> _submit() async {
+    if (_busy || !(_formKey.currentState?.validate() ?? false)) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final auth = AuthService.instance;
+      final user = _isLogin
+          ? await auth.login(email: _email.text.trim(), password: _password.text)
+          : await auth.register(
+              name: _name.text.trim(),
+              email: _email.text.trim(),
+              password: _password.text,
+            );
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+          builder: (_) => DashboardScreen(userName: user.name),
+        ),
+        (route) => false,
+      );
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
+    final errorColor = Theme.of(context).colorScheme.error;
 
     return Scaffold(
       body: DecoratedBox(
@@ -72,7 +114,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       const Center(child: BrandLogo(size: 88)),
                       const SizedBox(height: 20),
                       Text(
-                        'Welcome to Astra Learn',
+                        _isLogin ? 'Welcome back' : 'Create your account',
                         textAlign: TextAlign.center,
                         style: text.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w800,
@@ -80,42 +122,111 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Tell us who you are so your AI tutor can personalise your lessons.',
+                        _isLogin
+                            ? 'Sign in to continue learning with your AI tutor.'
+                            : 'Tell us who you are so your AI tutor can personalise your lessons.',
                         textAlign: TextAlign.center,
                         style: text.bodyMedium?.copyWith(color: c.textMuted),
                       ),
                       const SizedBox(height: 28),
-                      TextFormField(
-                        controller: _name,
-                        textInputAction: TextInputAction.next,
-                        textCapitalization: TextCapitalization.words,
-                        autofillHints: const [AutofillHints.name],
-                        decoration: const InputDecoration(
-                          hintText: 'Your name',
-                          prefixIcon: Icon(Icons.person_outline_rounded),
+                      if (!_isLogin) ...[
+                        TextFormField(
+                          controller: _name,
+                          textInputAction: TextInputAction.next,
+                          textCapitalization: TextCapitalization.words,
+                          autofillHints: const [AutofillHints.name],
+                          decoration: const InputDecoration(
+                            hintText: 'Your name',
+                            prefixIcon: Icon(Icons.person_outline_rounded),
+                          ),
+                          validator: _validateName,
                         ),
-                        validator: _validateName,
-                      ),
-                      const SizedBox(height: 14),
+                        const SizedBox(height: 14),
+                      ],
                       TextFormField(
                         controller: _email,
                         keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.done,
+                        textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
-                        onFieldSubmitted: (_) => _continue(),
                         decoration: const InputDecoration(
                           hintText: 'Student email',
                           prefixIcon: Icon(Icons.mail_outline_rounded),
                         ),
                         validator: _validateEmail,
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _password,
+                        obscureText: _hidePassword,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: [
+                          _isLogin
+                              ? AutofillHints.password
+                              : AutofillHints.newPassword,
+                        ],
+                        onFieldSubmitted: (_) => _submit(),
+                        decoration: InputDecoration(
+                          hintText: _isLogin ? 'Password' : 'Password (8+ characters)',
+                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          suffixIcon: IconButton(
+                            tooltip: _hidePassword ? 'Show password' : 'Hide password',
+                            icon: Icon(
+                              _hidePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                            onPressed: () =>
+                                setState(() => _hidePassword = !_hidePassword),
+                          ),
+                        ),
+                        validator: _validatePassword,
+                      ),
+                      if (_isLogin)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _busy
+                                ? null
+                                : () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => ForgotPasswordScreen(
+                                          initialEmail: _email.text.trim(),
+                                        ),
+                                      ),
+                                    ),
+                            child: const Text('Forgot password?'),
+                          ),
+                        ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: text.bodyMedium?.copyWith(color: errorColor),
+                        ),
+                      ],
+                      SizedBox(height: _isLogin ? 8 : 24),
                       FilledButton(
-                        onPressed: _continue,
+                        onPressed: _busy ? null : _submit,
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: const Text('Continue'),
+                        child: _busy
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(_isLogin ? 'Sign in' : 'Create account'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: _busy ? null : _switchMode,
+                        child: Text(
+                          _isLogin
+                              ? "New here? Create an account"
+                              : 'Already have an account? Sign in',
+                        ),
                       ),
                     ],
                   ),

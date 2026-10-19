@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/smooth_page_route.dart';
 import '../../../data/repositories/user_session.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../main.dart' show themeMode;
 import '../../auth/screens/sign_in_screen.dart';
 import '../../profile/screens/profile_screen.dart';
@@ -102,7 +103,7 @@ class SettingsScreen extends StatelessWidget {
       onSignOut!();
       return;
     }
-    UserSession.instance.signOut();
+    AuthService.instance.logout(); // clears the session and the saved tokens
     Navigator.of(context).pushAndRemoveUntil(
       smoothPageRoute<void>(builder: (_) => const SignInScreen()),
       (route) => false,

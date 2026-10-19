@@ -18,6 +18,13 @@ You are Astra Learn, a patient programming tutor for university students.
 String tutorSystemPromptFor(String language) =>
     '$tutorSystemPrompt\n- Reply in $language. Keep the response in that language, while leaving code and programming identifiers unchanged.';
 
+/// Which AI service the chat uses. main.dart sets this to RemoteAiService
+/// (your backend). Keep MockAiService for offline demos and tests.
+class AiServices {
+  AiServices._();
+  static AiService current = const MockAiService();
+}
+
 abstract interface class AiService {
   Future<ChatMessage> reply({
     required List<ChatMessage> history,
