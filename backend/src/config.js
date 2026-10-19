@@ -22,6 +22,6 @@ export const config = {
     provider: env.AI_PROVIDER || 'anthropic',
     apiKey: env.AI_API_KEY || '', // empty => mock replies
     model: env.AI_MODEL || '',
-    baseUrl: env.AI_BASE_URL || 'https://api.anthropic.com',
+    baseUrl: env.AI_BASE_URL || ((env.AI_PROVIDER || 'anthropic') === 'ollama' ? 'http://localhost:11434' : 'https://api.anthropic.com'),
   },
 };

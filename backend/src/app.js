@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { config } from './config.js';
 import { query } from './db.js';
+import { aiMode } from './services/aiService.js';
 import { errorHandler, notFoundHandler, wrap } from './middleware/errors.js';
 import { adminRouter } from './routes/admin.js';
 import { aiRouter } from './routes/ai.js';
@@ -28,7 +29,7 @@ export function createApp() {
 
   app.get('/api/health', wrap(async (_req, res) => {
     await query('SELECT 1');
-    res.json({ status: 'ok', ai: config.ai.apiKey ? 'configured' : 'mock' });
+    res.json({ status: 'ok', ai: aiMode() });
   }));
 
   // Stricter limit on login / register / reset (brute-force protection)

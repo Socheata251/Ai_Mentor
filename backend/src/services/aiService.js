@@ -65,37 +65,78 @@ function toProviderMessages(history, userText) {
   return merged;
 }
 
-/**
- * history: [{ role: 'user'|'ai', text }]  (oldest first, WITHOUT the new message)
- * returns { blocks, mock }
- */
-export async function generateReply({ history, userText, language = 'English', hintsFirst = true }) {
-  const { apiKey, model, baseUrl, provider } = config.ai;
+function isCloudOllama(baseUrl) {
+  return /(^|\/\/)([\w-]+\.)?ollama\.com/.test(baseUrl);
+}
 
-  if (!apiKey) return { blocks: mockReply({ userText, language }), mock: true };
+/** 'mock' = built-in fake replies, 'configured' = a real AI is used. */
+export function aiMode() {
+  const { provider, apiKey, model, baseUrl } = config.ai;
+  if (provider === 'ollama') {
+    if (!model) return 'mock';
+    if (!apiKey && isCloudOllama(baseUrl)) return 'mock'; // Ollama cloud needs a key
+    return 'configured'; // local Ollama needs no key
+  }
+  return apiKey ? 'configured' : 'mock';
+}
 
-  if (provider !== 'anthropic') throw new HttpError(501, 'ai_provider_unsupported', `AI_PROVIDER "${provider}" is not implemented`);
-  if (!model) throw new HttpError(503, 'ai_not_configured', 'AI_MODEL is empty');
+async function askOllama({ system, messages }) {
+  const { apiKey, model, baseUrl } = config.ai;
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: [{ role: 'system', content: system }, ...messages],
+      }),
+      signal: AbortSignal.timeout(120_000), // local models can be slow
+    });
+  } catch {
+    throw new HttpError(502, 'ai_unreachable', 'Ollama could not be reached');
+  }
+  if (!res.ok) throw new HttpError(502, 'ai_error', `Ollama returned ${res.status}`);
+  const data = await res.json();
+  return data?.message?.content ?? '';
+}
 
+async function askAnthropic({ system, messages }) {
+  const { apiKey, model, baseUrl } = config.ai;
   let res;
   try {
     res = await fetch(`${baseUrl}/v1/messages`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1024,
-        system: buildSystemPrompt({ language, hintsFirst }),
-        messages: toProviderMessages(history, userText),
-      }),
+      body: JSON.stringify({ model, max_tokens: 1024, system, messages }),
       signal: AbortSignal.timeout(30_000),
     });
   } catch {
     throw new HttpError(502, 'ai_unreachable', 'The AI service could not be reached');
   }
   if (!res.ok) throw new HttpError(502, 'ai_error', `The AI service returned ${res.status}`);
-
   const data = await res.json();
-  const text = (data.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('\n\n');
+  return (data.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('\n\n');
+}
+
+/**
+ * history: [{ role: 'user'|'ai', text }]  (oldest first, WITHOUT the new message)
+ * returns { blocks, mock }
+ */
+export async function generateReply({ history, userText, language = 'English', hintsFirst = true }) {
+  if (aiMode() === 'mock') return { blocks: mockReply({ userText, language }), mock: true };
+
+  const { provider, model } = config.ai;
+  if (provider !== 'anthropic' && provider !== 'ollama') {
+    throw new HttpError(501, 'ai_provider_unsupported', `AI_PROVIDER "${provider}" is not implemented`);
+  }
+  if (!model) throw new HttpError(503, 'ai_not_configured', 'AI_MODEL is empty');
+
+  const args = {
+    system: buildSystemPrompt({ language, hintsFirst }),
+    messages: toProviderMessages(history, userText),
+  };
+  const text = provider === 'ollama' ? await askOllama(args) : await askAnthropic(args);
   return { blocks: aiTextToBlocks(text), mock: false };
 }
