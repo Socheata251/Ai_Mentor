@@ -38,11 +38,16 @@ final class QuickCheckBlock extends MessageBlock {
     required this.options,
     required this.correctIndex,
     this.explanation,
+    this.answerBlocks = const [],
   });
   final String question;
   final List<QuickCheckOption> options;
   final int correctIndex;
   final String? explanation;
+
+  /// The AI's full, real answer. The chat adds it as a new AI message
+  /// AFTER the student chooses an option (hint -> choose -> real answer).
+  final List<MessageBlock> answerBlocks;
 }
 
 @immutable

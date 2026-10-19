@@ -11,7 +11,7 @@ import '../providers/settings_controller.dart';
 import '../../../core/widgets/app_shell.dart';
 
 /// Orange used for the toggles in your design.
-const _accent = Color(0xFFD2693A);
+const _accent = Color(0xFFB4521F);
 
 /// Footer text. Edit when you ship a new build.
 const kAppVersionLabel = 'IT Mentor AI • Version 2.4 (iOS Build 104)';
@@ -116,7 +116,7 @@ class SettingsScreen extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final divider = theme.colorScheme.outlineVariant.withValues(alpha: 0.5);
 
-    return AppShell(selectedIndex: 7, child: Scaffold(
+    return AppShell(selectedIndex: 6, child: Scaffold(
       body: DecoratedBox(
         decoration: BoxDecoration(
           color: isDark ? theme.scaffoldBackgroundColor : null,

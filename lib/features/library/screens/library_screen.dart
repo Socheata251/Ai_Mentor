@@ -5,7 +5,10 @@ import '../../../core/router/smooth_page_route.dart';
 import '../../../core/utils/snackbars.dart';
 import '../../../core/widgets/round_icon_button.dart';
 import '../../../data/models/course.dart';
-import '../../ai_tutor/screens/ai_tutor_screen.dart';
+import '../../../data/repositories/course_repository.dart';
+import '../../quiz/screens/quiz_screen.dart';
+import '../../quiz/widgets/course_quiz_generator.dart';
+import 'course_detail_screen.dart';
 import '../providers/library_controller.dart';
 import '../widgets/course_tile.dart';
 import '../widgets/exam_banner.dart';
@@ -35,12 +38,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _openCourse(Course course) {
-    // Opens the AI tutor on this course's topic.
+    // Opens the course detail page (info + Generate Quiz + Ask AI Tutor).
     Navigator.push(
       context,
-      smoothPageRoute(
-        builder: (_) => AiTutorScreen(topic: course.title, useDemo: false),
-      ),
+      smoothPageRoute(builder: (_) => CourseDetailScreen(course: course)),
+    );
+  }
+
+  /// "Generate Mock Quiz" banner: quiz for the course named in its subtitle.
+  void _startMockQuiz() {
+    final all = const MockCourseRepository().courses();
+    final course = all.firstWhere((c) => c.code == 'CS 201', orElse: () => all.first);
+    final quiz = CourseQuizGenerator.generate(course, count: 5);
+    Navigator.push(
+      context,
+      smoothPageRoute(builder: (_) => QuizScreen(initialTopic: quiz)),
     );
   }
 
@@ -120,8 +132,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           return Padding(
             padding: const EdgeInsets.only(top: 6),
             child: ExamBanner(
-              onStart: () => showComingSoon(context, 'AI mock quiz'),
-              // TODO: open the Quiz generator once that screen exists.
+              onStart: _startMockQuiz,
             ),
           );
         }

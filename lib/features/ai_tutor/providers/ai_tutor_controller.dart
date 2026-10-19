@@ -42,6 +42,22 @@ class AiTutorController extends ChangeNotifier {
   void answerQuickCheck(String messageId, int index) {
     if (_quickAnswers.containsKey(messageId)) return;
     _quickAnswers[messageId] = index;
+
+    // Hint -> choose -> real answer: after the student chooses, add the
+    // AI's full answer to the chat right below the question.
+    final at = _messages.indexWhere((m) => m.id == messageId);
+    if (at != -1) {
+      final answer = _messages[at].blocks
+          .whereType<QuickCheckBlock>()
+          .expand((q) => q.answerBlocks)
+          .toList();
+      final alreadyAdded =
+          at + 1 < _messages.length && _messages[at + 1].role == MessageRole.ai;
+      if (answer.isNotEmpty && !alreadyAdded) {
+        _messages.insert(at + 1, ChatMessage.ai(answer));
+        ChatConversationHistory.instance.save(conversationId, _messages);
+      }
+    }
     notifyListeners();
   }
 

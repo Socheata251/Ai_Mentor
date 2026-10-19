@@ -7,7 +7,6 @@ import '../../features/ai_tutor/screens/chat_prompt_history_screen.dart';
 import '../../features/library/screens/library_screen.dart';
 import '../../features/progress/screens/progress_screen.dart';
 import '../../features/quiz/screens/quiz_screen.dart';
-import '../../features/schedule/screens/schedule_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import 'smooth_page_route.dart';
 
@@ -16,7 +15,7 @@ import 'smooth_page_route.dart';
 ///
 /// Menu indexes (same as the drawer list):
 ///   0 Home · 1 AI Tutor · 2 Quiz · 3 History · 4 Library · 5 Progress
-///   6 Scheduled · 7 Settings
+///   6 Settings
 class AppNav {
   AppNav._();
 
@@ -29,8 +28,7 @@ class AppNav {
     3 => const ChatPromptHistoryScreen(),
     4 => const LibraryScreen(),
     5 => ProgressScreen(userName: userName),
-    6 => const ScheduleScreen(),
-    7 => const SettingsScreen(),
+    6 => const SettingsScreen(),
     _ => null,
   };
 

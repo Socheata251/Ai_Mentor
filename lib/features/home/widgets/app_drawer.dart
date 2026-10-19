@@ -105,7 +105,6 @@ class DrawerMenu extends StatelessWidget {
     (Icons.history_rounded, 'History'),
     (Icons.local_library_outlined, 'Library'),
     (Icons.insights_outlined, 'Progress'),
-    (Icons.event_note_outlined, 'Scheduled'),
     (Icons.settings_outlined, 'Settings'),
   ];
 
@@ -120,11 +119,7 @@ class DrawerMenu extends StatelessWidget {
             margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF4F7CFF), Color(0xFF8B5CF6)],
-              ),
+              gradient: colors.brandGradient,
               borderRadius: BorderRadius.circular(22),
             ),
             child: Row(

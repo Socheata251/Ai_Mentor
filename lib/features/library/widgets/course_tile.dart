@@ -40,7 +40,7 @@ class CourseTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    AppPill('SEM ${course.semester}', color: style.color, radius: 6, fontSize: 9),
+                    AppPill('SEM ${course.semester}', color: style.color, radius: 6, fontSize: 10.5),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
@@ -50,7 +50,7 @@ class CourseTile extends StatelessWidget {
                         style: TextStyle(
                           fontFamily: AppTypography.mono,
                           fontFamilyFallback: AppTypography.monoFallback,
-                          fontSize: 9.5,
+                          fontSize: 11,
                           color: c.textMuted,
                         ),
                       ),

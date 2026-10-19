@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 /// (logo tiles, badges, achievement cards). Theme-dependent gradients live
 /// on [AppColors] (`buttonGradient`, `brandGradient`, `pageGradient`).
 abstract final class AppGradients {
-  static const Color blue = Color(0xFF4F7CFF);
-  static const Color purple = Color(0xFF8B5CF6);
+  static const Color blue = Color(0xFF3B63E0);
+  static const Color purple = Color(0xFF7C4DEB);
   static const Color cyan = Color(0xFF4DB8FF);
 
   /// Main brand gradient (diagonal).

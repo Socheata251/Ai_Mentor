@@ -95,12 +95,12 @@ class AppColors extends ThemeExtension<AppColors> {
   static const light = AppColors(
     card: Color(0xFFFAFAFA),
     textStrong: Colors.black,
-    textSoft: Color(0xFF9E9E9E),
-    textMuted: Color(0xFF616161),
+    textSoft: Color(0xFF546072), // was 9E9E9E (2.7:1) -> 5.2:1
+    textMuted: Color(0xFF4A4A4A),
     dotActive: Colors.black,
     dotInactive: Color(0xFFE0E0E0),
-    gradientStart: Colors.blue,
-    gradientEnd: Colors.purpleAccent,
+    gradientStart: Color(0xFF1565C0), // white text 5.7:1 (was 3.1:1)
+    gradientEnd: Color(0xFF7C3AED), // white text 5.7:1 (was 3.3:1)
     glowIdle: Color(0xFF4A89E8),
     glowActive: Color(0xFF2FA8FF),
     glowAlpha: 0.5,
@@ -111,10 +111,10 @@ class AppColors extends ThemeExtension<AppColors> {
     border: Color(0xFFE3E9F4),
     ink: Color(0xFF111B33),
     onInk: Colors.white,
-    success: Color(0xFF34B56A),
-    warning: Color(0xFFF5A524),
-    danger: Color(0xFFE5484D),
-    info: Color(0xFF3B82F6),
+    success: Color(0xFF0F6B35),
+    warning: Color(0xFF9A5200),
+    danger: Color(0xFFB42318),
+    info: Color(0xFF1F57C3),
     codeBackground: Color(0xFF0F172A),
     codeText: Color(0xFFE2E8F0),
     backgroundGradient: [
@@ -130,12 +130,12 @@ class AppColors extends ThemeExtension<AppColors> {
   static const dark = AppColors(
     card: Color(0xFF141A30),
     textStrong: Color(0xFFF4F6FF),
-    textSoft: Color(0xFF8E97B8),
-    textMuted: Color(0xFFA3ABC8),
+    textSoft: Color(0xFF9AA3C4),
+    textMuted: Color(0xFFB4BCD8),
     dotActive: Colors.white,
     dotInactive: Color(0xFF3A4163),
-    gradientStart: Color(0xFF4F7CFF),
-    gradientEnd: Color(0xFF8B5CF6),
+    gradientStart: Color(0xFF3B63E0), // white text 5.2:1 (was 3.7:1)
+    gradientEnd: Color(0xFF7C4DEB), // white text 5.1:1 (was 4.2:1)
     glowIdle: Color(0xFF5B8CFF),
     glowActive: Color(0xFF4DB8FF),
     glowAlpha: 0.42, // glow looks stronger on dark, so soften it

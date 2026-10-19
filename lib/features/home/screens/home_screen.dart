@@ -10,7 +10,6 @@ import '../../../core/widgets/app_shell.dart';
 import '../../../core/widgets/stagger_in.dart';
 import '../../ai_tutor/screens/ai_tutor_screen.dart';
 import '../../ai_tutor/screens/chat_prompt_history_screen.dart';
-import '../../schedule/screens/schedule_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../widgets/home_back_glow.dart';
 import '../widgets/home_chat_input_bar.dart';
@@ -103,7 +102,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     Navigator.push(context, smoothPageRoute(builder: (_) => screen));
   }
 
-  void _openSchedule() => _push(const ScheduleScreen());
   void _openHistory() => _push(const ChatPromptHistoryScreen());
   void _openSettings() => _push(const SettingsScreen());
 
@@ -204,7 +202,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                     logoFloat: _logoFloat,
                     greeting: _greeting,
                     userName: widget.displayName,
-                    onViewSchedule: _openSchedule,
                   ),
                 ),
               ],

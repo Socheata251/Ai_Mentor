@@ -67,6 +67,10 @@ class RemoteAiService implements AiService {
           ],
           correctIndex: (b['correctIndex'] as num?)?.toInt() ?? 0,
           explanation: b['explanation'] as String?,
+          answerBlocks: [
+            for (final a in (b['answerBlocks'] as List? ?? const []).cast<Map<String, dynamic>>())
+              if (_block(a) case final block?) block,
+          ],
         );
     }
     return null; // unknown block type: skip it

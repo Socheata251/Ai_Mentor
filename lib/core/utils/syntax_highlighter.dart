@@ -7,7 +7,7 @@ abstract final class SyntaxHighlighter {
   static const Color text = Color(0xFFE2E8F0);
   static const Color keyword = Color(0xFFF472B6);
   static const Color string = Color(0xFF86EFAC);
-  static const Color comment = Color(0xFF64748B);
+  static const Color comment = Color(0xFF8393AB);
   static const Color number = Color(0xFFFBBF77);
   static const Color function = Color(0xFF7DD3FC);
 

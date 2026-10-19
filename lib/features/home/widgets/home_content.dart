@@ -5,13 +5,11 @@ import '../../../core/widgets/stagger_in.dart';
 import 'home_hero.dart';
 import 'insight_card.dart';
 import 'quick_actions.dart';
-import 'schedule_card.dart';
-import 'section_header.dart';
 import 'upgrade_card.dart';
 
 /// The scrolling part of the home screen.
 ///   phone / tablet -> one column
-///   desktop        -> two columns (hero + upgrade | actions + schedule)
+///   desktop        -> two columns (hero + upgrade | actions + insight)
 /// To reorder or add a section, edit the helper methods below.
 class HomeContent extends StatelessWidget {
   const HomeContent({
@@ -22,7 +20,6 @@ class HomeContent extends StatelessWidget {
     required this.logoFloat,
     required this.greeting,
     required this.userName,
-    required this.onViewSchedule,
   });
 
   final ScreenSize size;
@@ -31,7 +28,6 @@ class HomeContent extends StatelessWidget {
   final Animation<Offset> logoFloat;
   final String greeting;
   final String userName;
-  final VoidCallback onViewSchedule;
 
   // ---- sections (each one wrapped with its entrance animation) ----
 
@@ -50,18 +46,6 @@ class HomeContent extends StatelessWidget {
 
   Widget _actions() => StaggerIn(animation: fades[3], child: const QuickActions());
 
-  Widget _scheduleHeader() => StaggerIn(
-    animation: fades[4],
-    child: SectionHeader(
-      title: "Today's Schedule",
-      action: 'View All',
-      onTap: onViewSchedule,
-    ),
-  );
-
-  Widget _scheduleCard() =>
-      StaggerIn(animation: fades[4], child: const ScheduleCard());
-
   Widget _insight() => StaggerIn(animation: fades[5], child: const InsightCard());
 
   // ---- layouts ----
@@ -73,10 +57,6 @@ class HomeContent extends StatelessWidget {
     const SizedBox(height: 16),
     _actions(),
     const SizedBox(height: 24),
-    _scheduleHeader(),
-    const SizedBox(height: 12),
-    _scheduleCard(),
-    const SizedBox(height: 12),
     _insight(),
   ];
 
@@ -94,10 +74,6 @@ class HomeContent extends StatelessWidget {
           children: [
             _actions(),
             const SizedBox(height: 24),
-            _scheduleHeader(),
-            const SizedBox(height: 12),
-            _scheduleCard(),
-            const SizedBox(height: 12),
             _insight(),
           ],
         ),

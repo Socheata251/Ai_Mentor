@@ -11,7 +11,11 @@ import '../widgets/topic_picker.dart';
 import '../../../core/widgets/app_shell.dart';
 
 class QuizScreen extends StatefulWidget {
-  const QuizScreen({super.key, this.initialTopicId});
+  const QuizScreen({super.key, this.initialTopicId, this.initialTopic});
+
+  /// A ready-made quiz (e.g. generated from a Library course). It starts
+  /// right away and takes priority over [initialTopicId].
+  final QuizTopic? initialTopic;
 
   /// When set, the quiz for this topic starts right away (used by "Retake"
   /// in the history page). Otherwise the topic picker is shown first.
@@ -32,6 +36,12 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void initState() {
     super.initState();
+    final given = widget.initialTopic;
+    if (given != null) {
+      _quiz = QuizController(given);
+      _startTimer();
+      return;
+    }
     final id = widget.initialTopicId;
     if (id == null) return;
     for (final topic in _topics) {
