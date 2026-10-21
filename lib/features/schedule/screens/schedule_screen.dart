@@ -34,7 +34,7 @@ class ScheduleScreen extends StatelessWidget {
       _SessionData(
         title: 'Exam & Assignment Monitor',
         subtitle:
-            'Track CS 204 Computer Architecture and Operating Systems assignment deadlines and exam prep milestones.',
+            'Track CS 213 Data Structure & Algorithm and CS 214 Java Programming assignment deadlines and exam prep milestones.',
         time: 'Deadline in 3 days',
         tag: 'Check now',
         color: const Color(0xFFF59E0B),

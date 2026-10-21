@@ -8,7 +8,7 @@ class ExamBanner extends StatelessWidget {
   const ExamBanner({
     super.key,
     required this.onStart,
-    this.subtitle = 'Test yourself on CS 201 Trees & OOP Concepts',
+    this.subtitle = 'Test yourself on CS 213 Data Structure & Algorithm',
   });
 
   final VoidCallback onStart;

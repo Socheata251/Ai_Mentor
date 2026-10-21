@@ -1,14 +1,32 @@
 import 'package:flutter/foundation.dart';
 
 enum CourseCategory {
+  foundation,
+  language,
+  math,
+  business,
+  web,
+  programming,
+  database,
+  design,
   dataStructures,
   oop,
-  networks,
-  database,
-  web,
+  api,
   mobile,
-  architecture,
+  networks,
   os,
+  analytics,
+  devops,
+  electronics,
+  softSkills,
+  cloud,
+  iot,
+  management,
+  research,
+  security,
+  qa,
+  automation,
+  ai,
 }
 
 @immutable

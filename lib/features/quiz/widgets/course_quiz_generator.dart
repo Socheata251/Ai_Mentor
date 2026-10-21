@@ -17,7 +17,14 @@ class CourseQuizGenerator {
   static List<String> _topicIdsFor(CourseCategory category) => switch (category) {
     CourseCategory.dataStructures => const ['ds', 'dp'],
     CourseCategory.database => const ['sql'],
-    CourseCategory.web => const ['js'],
+    CourseCategory.web => const ['html', 'js'],
+    CourseCategory.api => const ['js'],
+    CourseCategory.programming => const ['csharp'],
+    CourseCategory.oop => const ['java'],
+    CourseCategory.networks => const ['net'],
+    CourseCategory.security => const ['sec'],
+    CourseCategory.devops || CourseCategory.cloud => const ['devops'],
+    CourseCategory.math => const ['math'],
     _ => const <String>[],
   };
 

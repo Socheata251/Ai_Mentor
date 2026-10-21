@@ -97,11 +97,17 @@ class _TopicPickerState extends State<TopicPicker> {
 
   static IconData _icon(QuizCategory category) => switch (category) {
     QuizCategory.javascript => Icons.javascript_rounded,
-    QuizCategory.python => Icons.code_rounded,
     QuizCategory.sql => Icons.storage_rounded,
     QuizCategory.dataStructures => Icons.account_tree_outlined,
     QuizCategory.dynamicProgramming => Icons.bolt_rounded,
     QuizCategory.mixed => Icons.shuffle_rounded,
+    QuizCategory.web => Icons.desktop_windows_outlined,
+    QuizCategory.csharp => Icons.code_rounded,
+    QuizCategory.java => Icons.data_object_rounded,
+    QuizCategory.networking => Icons.language_rounded,
+    QuizCategory.security => Icons.security_rounded,
+    QuizCategory.devops => Icons.sync_alt_rounded,
+    QuizCategory.math => Icons.calculate_rounded,
   };
 
   /// The filter icon in the search box: pick a level from a list.
@@ -319,7 +325,7 @@ class _SearchField extends StatelessWidget {
       onChanged: onChanged,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        hintText: 'Search topics like Python, SQL, JS...',
+        hintText: 'Search topics like Java, SQL, Networking...',
         prefixIcon: const Icon(Icons.search_rounded, size: 20),
         suffixIcon: controller.text.isEmpty
             ? IconButton(

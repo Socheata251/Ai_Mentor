@@ -179,15 +179,15 @@ describe('profile + settings', () => {
 describe('courses, quiz, progress', () => {
   it('courses list/filter/progress', async () => {
     const all = await api('GET', '/api/courses', { token: access });
-    assert.equal(all.json.courses.length, 8);
+    assert.equal(all.json.courses.length, 37);
     const s4 = await api('GET', '/api/courses?semester=4', { token: access });
     assert.ok(s4.json.courses.every((c) => c.semester === 4));
-    const q = await api('GET', '/api/courses?q=flutter', { token: access });
-    assert.equal(q.json.courses[0].code, 'CS 361');
-    // CS 230 has no lessons, so its progress is the manual value
-    assert.equal((await api('PUT', '/api/courses/CS%20230/progress', { token: access, body: { progress: 0.5 } })).status, 200);
-    assert.equal((await api('PUT', '/api/courses/CS%20230/progress', { token: access, body: { progress: 2 } })).status, 400);
-    assert.equal((await api('GET', '/api/courses/CS%20230', { token: access })).json.course.progress, 0.5);
+    const q = await api('GET', '/api/courses?q=android', { token: access });
+    assert.equal(q.json.courses[0].code, 'CS 218');
+    // CS 101 has no lessons, so its progress is the manual value
+    assert.equal((await api('PUT', '/api/courses/CS%20101/progress', { token: access, body: { progress: 0.5 } })).status, 200);
+    assert.equal((await api('PUT', '/api/courses/CS%20101/progress', { token: access, body: { progress: 2 } })).status, 400);
+    assert.equal((await api('GET', '/api/courses/CS%20101', { token: access })).json.course.progress, 0.5);
     assert.equal((await api('GET', '/api/courses/NOPE', { token: access })).status, 404);
   });
 
@@ -227,12 +227,12 @@ describe('courses, quiz, progress', () => {
 describe('lessons (library, no AI)', () => {
   let lessons;
   it('requires login', async () => {
-    assert.equal((await api('GET', '/api/courses/CS%20262/lessons')).status, 401);
+    assert.equal((await api('GET', '/api/courses/CS%20212/lessons')).status, 401);
     assert.equal((await api('GET', '/api/lessons/1')).status, 401);
   });
 
   it('lists the lessons of a course in order', async () => {
-    const r = await api('GET', '/api/courses/CS%20262/lessons', { token: access });
+    const r = await api('GET', '/api/courses/CS%20212/lessons', { token: access });
     assert.equal(r.status, 200);
     assert.equal(r.json.total, 5);
     assert.equal(r.json.completedCount, 0);
@@ -242,7 +242,7 @@ describe('lessons (library, no AI)', () => {
   });
 
   it('a course without lessons returns an empty list; unknown course is 404', async () => {
-    const r = await api('GET', '/api/courses/CS%20230/lessons', { token: access });
+    const r = await api('GET', '/api/courses/CS%20101/lessons', { token: access });
     assert.equal(r.status, 200);
     assert.equal(r.json.total, 0);
     assert.equal((await api('GET', '/api/courses/NOPE/lessons', { token: access })).status, 404);
@@ -251,7 +251,7 @@ describe('lessons (library, no AI)', () => {
   it('lesson detail has blocks, prev and next', async () => {
     const mid = await api('GET', `/api/lessons/${lessons[1].id}`, { token: access });
     assert.equal(mid.status, 200);
-    assert.equal(mid.json.lesson.courseTitle, 'Adv. Web Development');
+    assert.equal(mid.json.lesson.courseTitle, 'Web Development I');
     assert.ok(mid.json.lesson.blocks.some((b) => b.type === 'code'));
     assert.equal(mid.json.prev.id, lessons[0].id);
     assert.equal(mid.json.next.id, lessons[2].id);
@@ -266,7 +266,7 @@ describe('lessons (library, no AI)', () => {
     assert.deepEqual([a.json.courseDone, a.json.courseTotal], [1, 5]);
     await api('PUT', `/api/lessons/${lessons[0].id}/progress`, { token: access, body: { completed: true } }); // twice = still 1
     await api('PUT', `/api/lessons/${lessons[1].id}/progress`, { token: access, body: { completed: true } });
-    const c = await api('GET', '/api/courses/CS%20262', { token: access });
+    const c = await api('GET', '/api/courses/CS%20212', { token: access });
     assert.equal(c.json.course.progress, 0.4);
     assert.equal(c.json.course.lessonsDone, 2);
     const d = await api('GET', `/api/lessons/${lessons[0].id}`, { token: access });
@@ -278,7 +278,7 @@ describe('lessons (library, no AI)', () => {
 
   it("one student's progress is not visible to another", async () => {
     const other = await signUp('Other2', `test+p${Date.now()}@mail.dev`);
-    const r = await api('GET', '/api/courses/CS%20262/lessons', { token: other.accessToken });
+    const r = await api('GET', '/api/courses/CS%20212/lessons', { token: other.accessToken });
     assert.equal(r.json.completedCount, 0);
   });
 });

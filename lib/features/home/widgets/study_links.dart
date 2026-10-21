@@ -46,13 +46,17 @@ class StudyLinks extends StatelessWidget {
           builder: (context, constraints) {
             // Side by side when there is room, stacked on small phones.
             if (constraints.maxWidth >= 340) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: quiz),
-                  const SizedBox(width: 12),
-                  Expanded(child: library),
-                ],
+              // IntrinsicHeight gives the Row a finite height, so `stretch`
+              // works inside a scrolling list (unbounded height).
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: quiz),
+                    const SizedBox(width: 12),
+                    Expanded(child: library),
+                  ],
+                ),
               );
             }
             return Column(children: [quiz, const SizedBox(height: 12), library]);

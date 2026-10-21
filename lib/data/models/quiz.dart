@@ -1,6 +1,19 @@
 import 'package:flutter/foundation.dart';
 
-enum QuizCategory { javascript, python, sql, dataStructures, mixed, dynamicProgramming }
+enum QuizCategory {
+  javascript,
+  sql,
+  dataStructures,
+  mixed,
+  dynamicProgramming,
+  web,
+  csharp,
+  java,
+  networking,
+  security,
+  devops,
+  math,
+}
 
 /// One multiple-choice question.
 @immutable
