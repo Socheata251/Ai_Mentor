@@ -58,8 +58,17 @@ class QuizHistoryScreen extends StatelessWidget {
               );
             }
 
-            return ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: ListView.separated(
+              padding: EdgeInsets.fromLTRB(
+                  16,
+                  8,
+                  16,
+                  24 + MediaQuery.paddingOf(context).bottom,
+                ),
               itemCount: records.length,
               separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
@@ -117,6 +126,7 @@ class QuizHistoryScreen extends StatelessWidget {
                   ),
                 );
               },
+            )),
             );
           },
         ),

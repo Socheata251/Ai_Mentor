@@ -158,7 +158,11 @@ class _ChatPromptHistoryScreenState extends State<ChatPromptHistoryScreen> {
             final groups = _group(entries);
             final searching = _search.text.trim().isNotEmpty;
 
-            return ListView(
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               children: [
                 const _TopBar(),
@@ -240,6 +244,7 @@ class _ChatPromptHistoryScreenState extends State<ChatPromptHistoryScreen> {
                   ],
                 const _StorageNote(),
               ],
+            )),
             );
           },
         ),

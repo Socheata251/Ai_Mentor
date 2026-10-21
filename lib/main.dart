@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/constants/api_config.dart';
 import 'core/network/api_client.dart';
 import 'core/router/app_nav.dart';
+import 'core/utils/app_scroll_behavior.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/user_session.dart';
 import 'data/services/ai_service.dart';
@@ -54,6 +55,22 @@ class AImentor extends StatelessWidget {
         // FAST: switch instantly instead of cross-fading (and re-computing)
         // every color in the tree on each frame.
         themeAnimationDuration: Duration.zero,
+        // Mouse / trackpad drag scrolling for the website and desktop.
+        scrollBehavior: const AppScrollBehavior(),
+        // Respect the user's font size, but stop extreme sizes from breaking
+        // layouts on phones, tablets and the web.
+        builder: (context, child) {
+          final media = MediaQuery.of(context);
+          return MediaQuery(
+            data: media.copyWith(
+              textScaler: media.textScaler.clamp(
+                minScaleFactor: 0.9,
+                maxScaleFactor: 1.3,
+              ),
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: signedIn
             ? DashboardScreen(userName: UserSession.instance.name)
             : const OnboardingScreen(),

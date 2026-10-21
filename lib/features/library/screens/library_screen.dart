@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/smooth_page_route.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/utils/snackbars.dart';
 import '../../../core/widgets/round_icon_button.dart';
 import '../../../data/models/course.dart';
@@ -54,7 +55,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
           child: Center(
             // iPad: keep the content in a readable column.
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
+              constraints: BoxConstraints(
+                maxWidth: context.screenSize.isExpanded ? 1100 : 760,
+              ),
               child: Column(
                 children: [
                   const _Header(),
@@ -84,8 +87,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget _buildList() {
     final courses = _library.courses;
     final n = courses.length;
+
+    return LayoutBuilder(builder: (context, box) {
+    // Phone: 1 column. Tablet / desktop window: 2-3 tiles side by side.
+    final columns = ((box.maxWidth - 32) / 340).floor().clamp(1, 3);
     // rows: 0 university · 1 filters · 2 section header · courses (or empty) · banner
-    final courseRows = n == 0 ? 1 : n;
+    final courseRows = n == 0 ? 1 : (n / columns).ceil();
 
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
@@ -126,17 +133,42 @@ class _LibraryScreenState extends State<LibraryScreen> {
         }
         if (n == 0) return const _EmptyResults();
 
-        final course = courses[i - 3];
+        final first = (i - 3) * columns;
+        Widget tile(int index) => _Reveal(
+          key: ValueKey(courses[index].code),
+          index: index,
+          child: CourseTile(
+            course: courses[index],
+            onTap: () => _openCourse(courses[index]),
+          ),
+        );
+        if (columns == 1) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: tile(first),
+          );
+        }
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: _Reveal(
-            key: ValueKey(course.code),
-            index: i - 3,
-            child: CourseTile(course: course, onTap: () => _openCourse(course)),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var k = 0; k < columns; k++) ...[
+                  if (k > 0) const SizedBox(width: 10),
+                  Expanded(
+                    child: first + k < n
+                        ? tile(first + k)
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ],
+            ),
           ),
         );
       },
     );
+    });
   }
 }
 

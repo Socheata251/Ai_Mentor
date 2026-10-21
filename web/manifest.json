@@ -1,12 +1,12 @@
 {
-    "name": "Astra Learn",
-    "short_name": "Astra Learn",
+    "name": "iLearnCode",
+    "short_name": "iLearnCode",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "Astra Learn study companion.",
-    "orientation": "portrait-primary",
+    "description": "iLearnCode study companion.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {
