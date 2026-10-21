@@ -104,6 +104,32 @@ class _TopicPickerState extends State<TopicPicker> {
     QuizCategory.mixed => Icons.shuffle_rounded,
   };
 
+  /// The filter icon in the search box: pick a level from a list.
+  void _showLevelSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final level in _levels)
+              ListTile(
+                title: Text(level),
+                trailing: _level == level
+                    ? const Icon(Icons.check_rounded)
+                    : null,
+                onTap: () {
+                  setState(() => _level = level);
+                  Navigator.pop(sheetContext);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ---- build -----------------------------------------------------------
 
   @override
@@ -154,6 +180,7 @@ class _TopicPickerState extends State<TopicPicker> {
                   _SearchField(
                     controller: _search,
                     onChanged: (_) => setState(() {}),
+                    onFilter: _showLevelSheet,
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -269,10 +296,15 @@ class _Header extends StatelessWidget {
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller, required this.onChanged});
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onFilter,
+  });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final VoidCallback onFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -290,7 +322,11 @@ class _SearchField extends StatelessWidget {
         hintText: 'Search topics like Python, SQL, JS...',
         prefixIcon: const Icon(Icons.search_rounded, size: 20),
         suffixIcon: controller.text.isEmpty
-            ? Icon(Icons.tune_rounded, size: 20, color: c.textSoft)
+            ? IconButton(
+                tooltip: 'Filter by level',
+                onPressed: onFilter,
+                icon: Icon(Icons.tune_rounded, size: 20, color: c.textMuted),
+              )
             : IconButton(
                 tooltip: 'Clear search',
                 onPressed: () {
@@ -641,11 +677,15 @@ class _BottomBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.md),
     );
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+    // A card exactly as wide as the list above it (same 20px side margin).
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+      child: Container(
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: c.surface,
-        border: Border(top: BorderSide(color: c.border)),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: c.border),
       ),
       child: Row(
         children: [
@@ -685,6 +725,7 @@ class _BottomBar extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

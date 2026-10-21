@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/responsive.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/syntax_highlighter.dart';
 import '../../../data/models/quiz.dart';
@@ -141,7 +143,13 @@ class _QuizScreenState extends State<QuizScreen> {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
+              constraints: BoxConstraints(
+                // Topic list gets more room on tablets / desktop; the question
+                // and results screens keep their phone-sized column.
+                maxWidth: (quiz == null && summary == null && !context.screenSize.isCompact)
+                    ? 720
+                    : 520,
+              ),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 260),
                 switchInCurve: Curves.easeOutCubic,

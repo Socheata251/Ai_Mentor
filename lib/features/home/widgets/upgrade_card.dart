@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/snackbars.dart';
 import '../../../core/widgets/brand_logo.dart';
 import '../../../core/widgets/pressable.dart';
 import 'home_card.dart';
@@ -48,7 +49,7 @@ class UpgradeCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Pressable(
-            onTap: () {},
+            onTap: () => showComingSoon(context, 'Upgrade'),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               decoration: BoxDecoration(

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/router/smooth_page_route.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/app_header.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../data/models/message.dart';
@@ -30,6 +31,7 @@ class AiTutorScreen extends StatefulWidget {
     this.topic = 'JavaScript & Async Programming',
     this.useDemo = true,
     this.initialPrompt,
+    this.initialMode = 'Ask',
     this.conversationId,
     this.initialMessages = const [],
   });
@@ -41,6 +43,10 @@ class AiTutorScreen extends StatefulWidget {
   final String topic;
   final bool useDemo;
   final String? initialPrompt;
+
+  /// Which tab is selected when the chat opens: Ask, Explain, Summarize,
+  /// Solve or Quiz.
+  final String initialMode;
   final String? conversationId;
   final List<ChatMessage> initialMessages;
 
@@ -69,6 +75,7 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
   @override
   void initState() {
     super.initState();
+    if (_askModes.contains(widget.initialMode)) _askMode = widget.initialMode;
     _chat.addListener(_onChatChanged);
     _lastItemCount = _itemCount;
     _scrollToEnd(animate: false);
@@ -184,7 +191,9 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
+              constraints: BoxConstraints(
+                maxWidth: context.screenSize.isCompact ? 480 : 720,
+              ),
               child: Container(
                 margin: const EdgeInsets.all(10),
                 padding: const EdgeInsets.only(top: 8),

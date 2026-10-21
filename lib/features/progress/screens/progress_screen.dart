@@ -63,7 +63,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
       decoration: BoxDecoration(gradient: colors.pageGradient),
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          // Same 600px column as the content below, so the title and the
+          // "This Term" menu line up with the cards on wide screens.
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: AppBar(
           automaticallyImplyLeading: false,
           leading: AppMenuButton.hasSidebarOf(context)
               ? null
@@ -114,6 +121,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
             ),
           ],
+        ),
+            ),
+          ),
         ),
         body: LayoutBuilder(
           builder: (context, constraints) {

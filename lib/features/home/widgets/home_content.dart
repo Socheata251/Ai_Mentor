@@ -5,11 +5,12 @@ import '../../../core/widgets/stagger_in.dart';
 import 'home_hero.dart';
 import 'insight_card.dart';
 import 'quick_actions.dart';
+import 'study_links.dart';
 import 'upgrade_card.dart';
 
 /// The scrolling part of the home screen.
 ///   phone / tablet -> one column
-///   desktop        -> two columns (hero + upgrade | actions + insight)
+///   desktop        -> two columns (hero + upgrade | actions + study + insight)
 /// To reorder or add a section, edit the helper methods below.
 class HomeContent extends StatelessWidget {
   const HomeContent({
@@ -46,6 +47,8 @@ class HomeContent extends StatelessWidget {
 
   Widget _actions() => StaggerIn(animation: fades[3], child: const QuickActions());
 
+  Widget _study() => StaggerIn(animation: fades[4], child: const StudyLinks());
+
   Widget _insight() => StaggerIn(animation: fades[5], child: const InsightCard());
 
   // ---- layouts ----
@@ -57,11 +60,13 @@ class HomeContent extends StatelessWidget {
     const SizedBox(height: 16),
     _actions(),
     const SizedBox(height: 24),
+    _study(),
+    const SizedBox(height: 16),
     _insight(),
   ];
 
   Widget _twoColumns() => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.center,
     children: [
       Expanded(
         flex: 5,
@@ -74,6 +79,8 @@ class HomeContent extends StatelessWidget {
           children: [
             _actions(),
             const SizedBox(height: 24),
+            _study(),
+            const SizedBox(height: 16),
             _insight(),
           ],
         ),

@@ -56,7 +56,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             // iPad: keep the content in a readable column.
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: context.screenSize.isExpanded ? 1100 : 760,
+                maxWidth: context.screenSize.isExpanded ? 960 : 760,
               ),
               child: Column(
                 children: [
