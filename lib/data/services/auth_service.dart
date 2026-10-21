@@ -4,6 +4,15 @@ import '../models/user.dart';
 import '../repositories/user_session.dart';
 import 'storage_service.dart';
 
+/// Result of the first sign-up step. With the backend, [user] is null and the
+/// student must type the 6-digit code that was emailed. [devCode] only exists
+/// while the server has no email set up (development).
+class RegisterResult {
+  const RegisterResult({this.user, this.devCode});
+  final AppUser? user;
+  final String? devCode;
+}
+
 /// Register / sign in / sign out against the backend.
 /// With --dart-define=USE_BACKEND=false it keeps a local-only profile instead.
 class AuthService {
@@ -29,18 +38,39 @@ class AuthService {
     return user;
   }
 
-  Future<AppUser> register({
+  Future<RegisterResult> register({
     required String name,
     required String email,
     required String password,
   }) async {
-    if (!ApiConfig.useBackend) return _local(name, email);
+    if (!ApiConfig.useBackend) return RegisterResult(user: _local(name, email));
     final data = await _api.post(
       '/api/auth/register',
       auth: false,
       body: {'name': name, 'email': email, 'password': password},
+    ) as Map<String, dynamic>;
+    return RegisterResult(devCode: data['devCode'] as String?);
+  }
+
+  /// Step 2 of sign-up: the 6-digit code from the email. Success = signed in.
+  Future<AppUser> verifyEmail({required String email, required String code}) async {
+    final data = await _api.post(
+      '/api/auth/verify-email',
+      auth: false,
+      body: {'email': email, 'code': code},
     );
     return _finish(data as Map<String, dynamic>);
+  }
+
+  /// Sends a new code. purpose: 'verify' (sign-up) or 'reset' (forgot password).
+  /// Returns a dev-only code when the server has no email set up.
+  Future<String?> resendCode(String email, {String purpose = 'verify'}) async {
+    final data = await _api.post(
+      '/api/auth/resend-code',
+      auth: false,
+      body: {'email': email, 'purpose': purpose},
+    ) as Map<String, dynamic>;
+    return data['devCode'] as String?;
   }
 
   Future<AppUser> login({required String email, required String password}) async {
@@ -89,18 +119,22 @@ class AuthService {
     }
   }
 
-  /// Returns a dev-only reset code when the server runs outside production.
+  /// Emails a 6-digit reset code. Returns a dev-only code when the server has no email set up.
   Future<String?> forgotPassword(String email) async {
     if (!ApiConfig.useBackend) return null;
     final data = await _api.post('/api/auth/forgot-password', auth: false, body: {'email': email});
-    return (data as Map<String, dynamic>)['devToken'] as String?;
+    return (data as Map<String, dynamic>)['devCode'] as String?;
   }
 
-  Future<void> resetPassword({required String token, required String newPassword}) async {
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
     await _api.post(
       '/api/auth/reset-password',
       auth: false,
-      body: {'token': token, 'newPassword': newPassword},
+      body: {'email': email, 'code': code, 'newPassword': newPassword},
     );
   }
 

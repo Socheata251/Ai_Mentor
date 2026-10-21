@@ -6,6 +6,7 @@ import '../../../core/widgets/brand_logo.dart';
 import '../../../data/services/auth_service.dart';
 import '../../home/screens/home_screen.dart';
 import 'forgot_password_screen.dart';
+import 'verify_email_screen.dart';
 
 enum _Mode { login, register }
 
@@ -67,27 +68,55 @@ class _SignInScreenState extends State<SignInScreen> {
       _busy = true;
       _error = null;
     });
+    final email = _email.text.trim();
     try {
       final auth = AuthService.instance;
-      final user = _isLogin
-          ? await auth.login(email: _email.text.trim(), password: _password.text)
-          : await auth.register(
-              name: _name.text.trim(),
-              email: _email.text.trim(),
-              password: _password.text,
-            );
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(
-          builder: (_) => DashboardScreen(userName: user.name),
-        ),
-        (route) => false,
-      );
+      if (_isLogin) {
+        final user = await auth.login(email: email, password: _password.text);
+        _goHome(user.name);
+      } else {
+        final result = await auth.register(
+          name: _name.text.trim(),
+          email: email,
+          password: _password.text,
+        );
+        if (result.user != null) {
+          _goHome(result.user!.name); // offline mode: no code needed
+        } else {
+          _openCodeScreen(email, devCode: result.devCode);
+        }
+      }
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (e.code == 'email_not_verified') {
+        // Correct password, but the email was never confirmed.
+        _openCodeScreen(email, sendOnOpen: true);
+      } else if (mounted) {
+        setState(() => _error = e.message);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _goHome(String userName) {
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => DashboardScreen(userName: userName)),
+      (route) => false,
+    );
+  }
+
+  void _openCodeScreen(String email, {String? devCode, bool sendOnOpen = false}) {
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VerifyEmailScreen(
+          email: email,
+          devCode: devCode,
+          sendOnOpen: sendOnOpen,
+        ),
+      ),
+    );
   }
 
   @override

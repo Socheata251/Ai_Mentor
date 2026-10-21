@@ -7,9 +7,17 @@ import { notFound, wrap } from '../middleware/errors.js';
 export const coursesRouter = Router();
 coursesRouter.use(requireAuth);
 
+// progress = finished lessons / all lessons. Courses without lessons use the saved manual value.
 const SELECT = `SELECT c.code, c.title, c.topics, c.semester, c.credits, c.category,
-  COALESCE(p.progress, 0)::float AS progress
-  FROM courses c LEFT JOIN user_course_progress p ON p.course_code = c.code AND p.user_id = $1`;
+  (CASE WHEN lt.total > 0 THEN lt.done::float / lt.total ELSE COALESCE(p.progress, 0)::float END) AS progress,
+  lt.total AS "lessonCount", lt.done AS "lessonsDone"
+  FROM courses c
+  LEFT JOIN user_course_progress p ON p.course_code = c.code AND p.user_id = $1
+  LEFT JOIN LATERAL (
+    SELECT count(*)::int AS total, count(ulp.lesson_id)::int AS done
+    FROM lessons l LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = $1
+    WHERE l.course_code = c.code
+  ) lt ON true`;
 
 coursesRouter.get('/', wrap(async (req, res) => {
   const sem = req.query.semester ? Number(req.query.semester) : null;

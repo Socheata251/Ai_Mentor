@@ -11,6 +11,7 @@ import { aiRouter } from './routes/ai.js';
 import { authRouter } from './routes/auth.js';
 import { chatsRouter } from './routes/chats.js';
 import { coursesRouter } from './routes/courses.js';
+import { lessonsRouter } from './routes/lessons.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { progressRouter } from './routes/progress.js';
 import { quizRouter } from './routes/quiz.js';
@@ -37,6 +38,7 @@ export function createApp() {
   app.use('/api/users', usersRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/courses', coursesRouter);
+  app.use('/api', lessonsRouter);
   app.use('/api/quiz', quizRouter);
   app.use('/api/chats', chatsRouter);
   app.use('/api/ai', aiRouter);

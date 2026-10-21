@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
@@ -8,9 +11,8 @@ import '../../../data/services/auth_service.dart';
 ///   1) enter your email  ->  the server creates a reset code
 ///   2) enter the code + a new password
 ///
-/// TODO(backend): the server must email the code. Until an email provider is
-/// connected, the server (outside production) returns the code in its
-/// response and this screen fills it in for you, which is fine for a class demo.
+/// The server emails a 6-digit code (valid 10 minutes). While the server has no
+/// email set up (development), it returns the code and this screen fills it in.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key, this.initialEmail = ''});
 
@@ -28,11 +30,27 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   bool _codeSent = false;
   bool _busy = false;
+  int _cooldown = 0;
+  Timer? _timer;
   String? _message;
   String? _error;
 
+  void _startCooldown() {
+    _timer?.cancel();
+    setState(() => _cooldown = 60);
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted || _cooldown <= 1) {
+        t.cancel();
+        if (mounted) setState(() => _cooldown = 0);
+      } else {
+        setState(() => _cooldown--);
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _timer?.cancel();
     _email.dispose();
     _code.dispose();
     _password.dispose();
@@ -60,14 +78,37 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         if (!mounted) return;
         setState(() {
           _codeSent = true;
-          _message = 'If this email has an account, a reset code was sent.';
+          _message = 'If this email has an account, a 6-digit code was sent.';
           if (devToken != null) _code.text = devToken;
         });
+        _startCooldown();
       });
+
+  Future<void> _resend() async {
+    if (_busy || _cooldown > 0) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final devCode = await AuthService.instance.resendCode(_email.text.trim(), purpose: 'reset');
+      if (!mounted) return;
+      setState(() {
+        _message = 'A new code was sent.';
+        if (devCode != null) _code.text = devCode;
+      });
+      _startCooldown();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   Future<void> _reset() => _run(() async {
         await AuthService.instance.resetPassword(
-          token: _code.text.trim(),
+          email: _email.text.trim(),
+          code: _code.text.trim(),
           newPassword: _password.text,
         );
         if (!mounted) return;
@@ -130,12 +171,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         const SizedBox(height: 14),
                         TextFormField(
                           controller: _code,
+                          keyboardType: TextInputType.number,
+                          maxLength: 6,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          autofillHints: const [AutofillHints.oneTimeCode],
                           decoration: const InputDecoration(
-                            hintText: 'Reset code',
+                            hintText: '6-digit code',
+                            counterText: '',
                             prefixIcon: Icon(Icons.pin_outlined),
                           ),
                           validator: (v) =>
-                              (v == null || v.trim().length < 10) ? 'Enter the reset code' : null,
+                              RegExp(r'^\d{6}$').hasMatch(v?.trim() ?? '') ? null : 'Enter the 6-digit code',
                         ),
                         const SizedBox(height: 14),
                         TextFormField(
@@ -175,6 +221,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               )
                             : Text(_codeSent ? 'Change password' : 'Send reset code'),
                       ),
+                      if (_codeSent)
+                        TextButton(
+                          onPressed: (_busy || _cooldown > 0) ? null : _resend,
+                          child: Text(_cooldown > 0 ? 'Send a new code in ${_cooldown}s' : 'Send a new code'),
+                        ),
                     ],
                   ),
                 ),

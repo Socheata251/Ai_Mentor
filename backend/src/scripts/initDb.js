@@ -16,8 +16,8 @@ if (ADMIN_EMAIL && ADMIN_PASSWORD) {
   if (ADMIN_PASSWORD.length < 8) throw new Error('ADMIN_PASSWORD must have at least 8 characters');
   const hash = await bcrypt.hash(ADMIN_PASSWORD, 12);
   const r = await pool.query(
-    `INSERT INTO users (name, email, password_hash, role_id)
-     SELECT 'Admin', $1, $2, (SELECT id FROM roles WHERE name = 'admin')
+    `INSERT INTO users (name, email, password_hash, role_id, email_verified_at)
+     SELECT 'Admin', $1, $2, (SELECT id FROM roles WHERE name = 'admin'), now()
      WHERE NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = lower($1) AND deleted_at IS NULL) RETURNING id`,
     [ADMIN_EMAIL, hash],
   );
