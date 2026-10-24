@@ -59,9 +59,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     final style = CourseStyle.of(course.category);
 
     return Scaffold(
-      backgroundColor: c.page,
+      backgroundColor: ScreenAccent.of(context, AppScreen.library).page,
       body: DecoratedBox(
-        decoration: BoxDecoration(gradient: c.pageGradient),
+        decoration: BoxDecoration(gradient: ScreenAccent.of(context, AppScreen.library).pageGradient),
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(

@@ -27,6 +27,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final a = ScreenAccent.of(context, AppScreen.tutor);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -53,7 +54,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
                         margin: EdgeInsets.only(right: i == 2 ? 0 : 5),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: c.gradientStart.withValues(alpha: _opacity(i)),
+                          color: a.color.withValues(alpha: _opacity(i)),
                         ),
                       ),
                   ],

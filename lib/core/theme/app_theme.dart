@@ -6,6 +6,7 @@ import 'light_theme.dart';
 // One import gives screens everything:  import '.../core/theme/app_theme.dart';
 export 'app_colors.dart';
 export 'app_gradients.dart';
+export 'screen_accent.dart';
 export 'app_typography.dart';
 export 'theme_builder.dart' show AppRadius;
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'core/constants/api_config.dart';
 import 'core/network/api_client.dart';
@@ -61,14 +62,30 @@ class AImentor extends StatelessWidget {
         // layouts on phones, tablets and the web.
         builder: (context, child) {
           final media = MediaQuery.of(context);
-          return MediaQuery(
-            data: media.copyWith(
-              textScaler: media.textScaler.clamp(
-                minScaleFactor: 0.9,
-                maxScaleFactor: 1.3,
-              ),
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final icons = isDark ? Brightness.light : Brightness.dark;
+          // Status / navigation bar icons stay readable in light and dark
+          // mode on Android and iOS.
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: icons, // Android
+              statusBarBrightness: isDark
+                  ? Brightness.dark
+                  : Brightness.light, // iOS
+              systemNavigationBarColor: Colors.transparent,
+              systemNavigationBarIconBrightness: icons,
+              systemNavigationBarContrastEnforced: false,
             ),
-            child: child ?? const SizedBox.shrink(),
+            child: MediaQuery(
+              data: media.copyWith(
+                textScaler: media.textScaler.clamp(
+                  minScaleFactor: 0.9,
+                  maxScaleFactor: 1.3,
+                ),
+              ),
+              child: child ?? const SizedBox.shrink(),
+            ),
           );
         },
         home: signedIn

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/router/smooth_page_route.dart';
 import '../../ai_tutor/screens/ai_tutor_screen.dart';
 import '../../quiz/screens/quiz_screen.dart';
@@ -51,6 +52,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
   }
 
+  /// Page column: phone = full width, tablet = 720, desktop = 2 columns.
+  static double _columnWidth(double available) =>
+      available >= 900 ? 1040 : (available >= 600 ? 720 : 600);
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -60,16 +65,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
       selectedIndex: 5,
       userName: widget.displayName,
       child: Container(
-      decoration: BoxDecoration(gradient: colors.pageGradient),
+      decoration: BoxDecoration(gradient: ScreenAccent.of(context, AppScreen.progress).pageGradient),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: PreferredSize(
           preferredSize: const Size.fromHeight(kToolbarHeight),
-          // Same 600px column as the content below, so the title and the
+          // Same column as the content below, so the title and the
           // "This Term" menu line up with the cards on wide screens.
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
+              constraints: BoxConstraints(
+                maxWidth: _columnWidth(context.contentWidth),
+              ),
               child: AppBar(
           automaticallyImplyLeading: false,
           leading: AppMenuButton.hasSidebarOf(context)
@@ -127,26 +134,59 @@ class _ProgressScreenState extends State<ProgressScreen> {
         ),
         body: LayoutBuilder(
           builder: (context, constraints) {
-            final contentWidth = constraints.maxWidth > 600
-                ? 600.0
-                : constraints.maxWidth;
+            final available = constraints.maxWidth;
+            final contentWidth = available < _columnWidth(available)
+                ? available
+                : _columnWidth(available);
+            // Wide window: two columns side by side instead of one long
+            // narrow column with empty space around it.
+            final twoColumns = available >= 900;
             return Center(
               child: SizedBox(
                 width: contentWidth,
                 height: constraints.maxHeight,
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-                  children: [
-                    _SummaryCard(term: _term),
-                    const SizedBox(height: 12),
-                    _TopicsCard(topics: _topics),
-                    const SizedBox(height: 12),
-                    _RecommendationCard(onStart: _openTutor),
-                    const SizedBox(height: 12),
-                    const _StreakCard(),
-                    const SizedBox(height: 12),
-                    _PracticeCard(onStartQuiz: _openQuiz),
-                  ],
+                  children: twoColumns
+                      ? [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    _SummaryCard(term: _term),
+                                    const SizedBox(height: 16),
+                                    _TopicsCard(topics: _topics),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    _RecommendationCard(onStart: _openTutor),
+                                    const SizedBox(height: 16),
+                                    const _StreakCard(),
+                                    const SizedBox(height: 16),
+                                    _PracticeCard(onStartQuiz: _openQuiz),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ]
+                      : [
+                          _SummaryCard(term: _term),
+                          const SizedBox(height: 12),
+                          _TopicsCard(topics: _topics),
+                          const SizedBox(height: 12),
+                          _RecommendationCard(onStart: _openTutor),
+                          const SizedBox(height: 12),
+                          const _StreakCard(),
+                          const SizedBox(height: 12),
+                          _PracticeCard(onStartQuiz: _openQuiz),
+                        ],
                 ),
               ),
             );
@@ -159,7 +199,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
             height: 42,
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 568),
+                constraints: BoxConstraints(
+                  maxWidth: _columnWidth(context.contentWidth) - 32,
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(

@@ -25,6 +25,7 @@ class QuickCheckCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final a = ScreenAccent.of(context, AppScreen.tutor);
     final t = Theme.of(context).textTheme;
     final answered = selected != null;
     final correct = selected == block.correctIndex;
@@ -33,9 +34,9 @@ class QuickCheckCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: c.tile.withValues(alpha: 0.3),
+        color: a.soft.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: c.border),
+        border: Border.all(color: a.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,7 +48,7 @@ class QuickCheckCard extends StatelessWidget {
               Text(
                 'QUICK CHECK FOR ${userName.toUpperCase()}',
                 style: t.labelSmall!.copyWith(
-                  color: c.gradientStart,
+                  color: a.color,
                   fontWeight: FontWeight.w800,
                 ),
               ),

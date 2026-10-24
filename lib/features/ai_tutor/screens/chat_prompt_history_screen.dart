@@ -144,8 +144,12 @@ class _ChatPromptHistoryScreenState extends State<ChatPromptHistoryScreen> {
     final c = context.colors;
 
     return AppShell(selectedIndex: 3, child: Scaffold(
-      backgroundColor: c.page,
-      body: SafeArea(
+      backgroundColor: ScreenAccent.of(context, AppScreen.history).page,
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: ScreenAccent.of(context, AppScreen.history).pageGradient,
+        ),
+        child: SafeArea(
         child: AnimatedBuilder(
           animation: _sources,
           builder: (context, _) {
@@ -247,6 +251,7 @@ class _ChatPromptHistoryScreenState extends State<ChatPromptHistoryScreen> {
             )),
             );
           },
+        ),
         ),
       ),
     ));

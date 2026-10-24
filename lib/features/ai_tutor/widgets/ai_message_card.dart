@@ -46,6 +46,7 @@ class AiMessageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final a = ScreenAccent.of(context, AppScreen.tutor);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final t = Theme.of(context).textTheme;
 
@@ -62,9 +63,9 @@ class AiMessageCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
               decoration: BoxDecoration(
-                color: isDark ? c.surface : const Color(0xFFF9FAFF),
+                color: isDark ? c.surface : Colors.white,
                 border: Border.all(
-                  color: isDark ? c.border : const Color(0xFFE6E9FF),
+                  color: a.border,
                 ),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(8),
@@ -74,7 +75,7 @@ class AiMessageCard extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: (isDark ? Colors.black : const Color(0x0F6A66C8))
+                    color: (isDark ? Colors.black : a.color)
                         .withValues(alpha: isDark ? 0.2 : 0.08),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
@@ -88,7 +89,7 @@ class AiMessageCard extends StatelessWidget {
                     'IT Mentor AI',
                     style: t.labelMedium!.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: isDark ? c.gradientStart : const Color(0xFF3E4A9F),
+                      color: a.color,
                     ),
                   ),
                   const SizedBox(height: 8),

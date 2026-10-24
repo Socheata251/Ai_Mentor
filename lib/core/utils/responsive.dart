@@ -30,3 +30,15 @@ extension ScreenSizeX on ScreenSize {
     ScreenSize.expanded => expanded ?? medium ?? compact,
   };
 }
+
+/// Width of the permanent left menu on desktop (see HomeSideBar).
+const double kSidebarWidth = 288;
+
+extension ContentWidthContext on BuildContext {
+  /// Width left for the page: the window minus the desktop sidebar.
+  /// Use it to choose a content width / number of columns.
+  double get contentWidth {
+    final width = MediaQuery.sizeOf(this).width;
+    return screenSize.isExpanded ? width - kSidebarWidth : width;
+  }
+}

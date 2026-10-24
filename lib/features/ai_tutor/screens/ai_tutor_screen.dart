@@ -171,173 +171,163 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final a = ScreenAccent.of(context, AppScreen.tutor);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final size = context.screenSize;
+    final media = MediaQuery.of(context);
+    final compact = size.isCompact;
+    // Landscape phones or an open keyboard leave little height: drop the
+    // suggestion chips so the conversation keeps the space.
+    final tight = media.size.height < 560 || media.viewInsets.bottom > 0;
+
+    // Phone  -> full screen, no floating card (like every other screen).
+    // Tablet / desktop -> centred card that grows with the window.
+    final maxWidth = size.pick(
+      compact: double.infinity,
+      medium: 760.0,
+      expanded: 920.0,
+    );
+    final outer = size.pick(compact: 0.0, medium: 16.0, expanded: 24.0);
+    final side = size.pick(compact: 16.0, medium: 20.0, expanded: 24.0);
+
+    final chat = Column(
+      children: [
+        AppHeader(
+          horizontalPadding: side - 4,
+          leading: AppMenuButton.leadingOf(context),
+          title: _ChatTitle(topic: widget.topic),
+          actions: [
+            HeaderButton(
+              icon: Icons.edit_square,
+              tooltip: 'New chat',
+              onTap: _newChat,
+            ),
+            HeaderButton(
+              icon: Icons.history_rounded,
+              tooltip: 'Your questions',
+              onTap: _showPromptHistory,
+            ),
+            HeaderMoreMenu(onSettings: _openSettings, onClear: _chat.clear),
+          ],
+        ),
+        Expanded(
+          child: ListenableBuilder(
+            listenable: _chat,
+            builder: (context, _) => _buildList(side),
+          ),
+        ),
+        ListenableBuilder(
+          listenable: _chat,
+          builder: (context, _) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _chat.isTyping
+                ? const SizedBox(height: 38)
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        height: 46,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          padding: EdgeInsets.symmetric(horizontal: side),
+                          itemCount: _askModes.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
+                          itemBuilder: (context, i) {
+                            final mode = _askModes[i];
+                            final selected = _askMode == mode;
+                            return Center(
+                              child: ChoiceChip(
+                                label: Text(mode),
+                                selected: selected,
+                                showCheckmark: false,
+                                onSelected: (_) =>
+                                    setState(() => _askMode = mode),
+                                visualDensity: VisualDensity.compact,
+                                backgroundColor: isDark ? c.tile : Colors.white,
+                                selectedColor: a.color,
+                                side: BorderSide(
+                                  color: selected ? a.color : a.border,
+                                ),
+                                labelStyle: TextStyle(
+                                  color: selected
+                                      ? a.onColor
+                                      : (isDark ? c.textMuted : a.color),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      if (!tight)
+                        SuggestionChips(
+                          items: AiTutorController.suggestions,
+                          onTap: _send,
+                        ),
+                    ],
+                  ),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(side, 0, side, compact ? 10 : 14),
+          child: ListenableBuilder(
+            listenable: _chat,
+            builder: (context, _) => ChatInputBar(
+              controller: _input,
+              focusNode: _focus,
+              enabled: !_chat.isTyping,
+              onSend: _send,
+            ),
+          ),
+        ),
+      ],
+    );
 
     return AppShell(
       selectedIndex: 1,
       userName: widget.displayName,
       child: Scaffold(
-      backgroundColor: isDark ? c.page : const Color(0xFFEAF0F7),
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: isDark
-              ? c.pageGradient
-              : const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFF2F6FB), Color(0xFFEAF0F7)],
-                ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: context.screenSize.isCompact ? 480 : 720,
-              ),
-              child: Container(
-                margin: const EdgeInsets.all(10),
-                padding: const EdgeInsets.only(top: 8),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? c.surface
-                      : Colors.white.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: isDark ? c.border : const Color(0xFFE4E8F1),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isDark ? Colors.black : const Color(0x1A1F2E4A))
-                          .withValues(alpha: isDark ? 0.35 : 0.1),
-                      blurRadius: 18,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    AppHeader(
-                      horizontalPadding: 12,
-                      leading: AppMenuButton.leadingOf(context),
-                      title: _ChatTitle(topic: widget.topic),
-                      actions: [
-                        HeaderButton(
-                          icon: Icons.edit_square,
-                          tooltip: 'New chat',
-                          onTap: _newChat,
-                        ),
-                        HeaderButton(
-                          icon: Icons.history_rounded,
-                          tooltip: 'Your questions',
-                          onTap: _showPromptHistory,
-                        ),
-                        HeaderMoreMenu(
-                          onSettings: _openSettings,
-                          onClear: _chat.clear,
-                        ),
-                      ],
-                    ),
-                    Expanded(
-                      child: ListenableBuilder(
-                        listenable: _chat,
-                        builder: (context, _) => _buildList(),
-                      ),
-                    ),
-                    ListenableBuilder(
-                      listenable: _chat,
-                      builder: (context, _) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _chat.isTyping
-                            ? const SizedBox(height: 38)
-                            : Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        for (final mode in _askModes) ...[
-                                          if (mode != _askModes.first)
-                                            const SizedBox(width: 8),
-                                          ChoiceChip(
-                                            label: Text(mode),
-                                            selected: _askMode == mode,
-                                            onSelected: (_) =>
-                                                setState(() => _askMode = mode),
-                                            visualDensity:
-                                                VisualDensity.compact,
-                                            backgroundColor: isDark
-                                                ? c.tile
-                                                : const Color(0xFFF6F8FC),
-                                            selectedColor: isDark
-                                                ? c.gradientStart.withValues(
-                                                    alpha: 0.18,
-                                                  )
-                                                : const Color(0xFFE9EDFF),
-                                            side: BorderSide(
-                                              color: _askMode == mode
-                                                  ? (isDark
-                                                        ? c.gradientStart
-                                                        : const Color(
-                                                            0xFFCBD5FF,
-                                                          ))
-                                                  : Colors.transparent,
-                                            ),
-                                            labelStyle: TextStyle(
-                                              color: _askMode == mode
-                                                  ? (isDark
-                                                        ? c.textStrong
-                                                        : const Color(
-                                                            0xFF2E2B6E,
-                                                          ))
-                                                  : (isDark
-                                                        ? c.textMuted
-                                                        : const Color(
-                                                            0xFF49506B,
-                                                          )),
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  SuggestionChips(
-                                    items: AiTutorController.suggestions,
-                                    onTap: _send,
-                                  ),
-                                ],
+        backgroundColor: a.page,
+        body: DecoratedBox(
+          decoration: BoxDecoration(gradient: a.pageGradient),
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: compact
+                    ? chat
+                    : Container(
+                        margin: EdgeInsets.all(outer),
+                        padding: const EdgeInsets.only(top: 8),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? c.surface
+                              : Colors.white.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(color: a.border, width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: a.color.withValues(
+                                alpha: isDark ? 0.18 : 0.10,
                               ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                      child: ListenableBuilder(
-                        listenable: _chat,
-                        builder: (context, _) => ChatInputBar(
-                          controller: _input,
-                          focusNode: _focus,
-                          enabled: !_chat.isTyping,
-                          onSend: _send,
+                              blurRadius: 18,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
                         ),
+                        child: chat,
                       ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ),
         ),
       ),
-    ),
     );
   }
 
-  Widget _buildList() {
+  Widget _buildList(double side) {
     final messages = _chat.messages;
     if (messages.isEmpty && !_chat.isTyping) {
       return _EmptyState(name: widget.displayName);
@@ -348,7 +338,7 @@ class _AiTutorScreenState extends State<AiTutorScreen> {
       controller: _scroll,
       physics: const BouncingScrollPhysics(),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      padding: EdgeInsets.fromLTRB(side, 4, side, 12),
       itemCount: messages.length + 1 + (typing ? 1 : 0),
       itemBuilder: (context, i) {
         if (i == 0) {
@@ -453,12 +443,16 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 36),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+    return LayoutBuilder(
+      builder: (context, box) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
             const AiAvatar(size: 68),
             const SizedBox(height: 16),
             Text(
@@ -472,7 +466,10 @@ class _EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: t.bodySmall!.copyWith(fontSize: 13, height: 1.45),
             ),
-          ],
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

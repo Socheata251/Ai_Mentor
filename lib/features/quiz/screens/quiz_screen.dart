@@ -137,9 +137,9 @@ class _QuizScreenState extends State<QuizScreen> {
     final summary = _summary;
 
     return AppShell(selectedIndex: 2, child: Scaffold(
-      backgroundColor: c.page,
+      backgroundColor: ScreenAccent.of(context, AppScreen.quiz).page,
       body: DecoratedBox(
-        decoration: BoxDecoration(gradient: c.pageGradient),
+        decoration: BoxDecoration(gradient: ScreenAccent.of(context, AppScreen.quiz).pageGradient),
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(

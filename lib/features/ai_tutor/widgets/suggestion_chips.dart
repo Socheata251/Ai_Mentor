@@ -11,6 +11,8 @@ class SuggestionChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final a = ScreenAccent.of(context, AppScreen.tutor);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final c = context.colors;
     final style = Theme.of(
       context,
@@ -25,8 +27,8 @@ class SuggestionChips extends StatelessWidget {
         itemCount: items.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) => Material(
-          color: c.surface,
-          shape: StadiumBorder(side: BorderSide(color: c.border)),
+          color: isDark ? c.surface : Colors.white,
+          shape: StadiumBorder(side: BorderSide(color: a.border)),
           child: InkWell(
             customBorder: const StadiumBorder(),
             onTap: () => onTap(items[i]),

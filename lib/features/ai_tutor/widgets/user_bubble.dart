@@ -15,21 +15,22 @@ class UserBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
+    final a = ScreenAccent.of(context, AppScreen.tutor);
     final t = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     const onBubble = Colors.white;
 
+    return LayoutBuilder(builder: (context, box) {
+    final maxBubble = (box.maxWidth * 0.85).clamp(200.0, 640.0);
     return Align(
       alignment: Alignment.centerRight,
       child: Padding(
-        padding: const EdgeInsets.only(left: 40, bottom: 16),
+        padding: const EdgeInsets.only(left: 24, bottom: 16),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
+          constraints: BoxConstraints(maxWidth: maxBubble),
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
             decoration: BoxDecoration(
-              color: isDark ? c.gradientStart : const Color(0xFF111B33),
+              color: a.color,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(18),
                 topRight: Radius.circular(18),
@@ -87,5 +88,6 @@ class UserBubble extends StatelessWidget {
         ),
       ),
     );
+    });
   }
 }
