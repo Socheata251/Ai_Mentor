@@ -79,7 +79,7 @@ class _LessonScreenState extends State<LessonScreen> {
 
     return Scaffold(
       body: DecoratedBox(
-        decoration: BoxDecoration(gradient: c.pageGradient),
+        decoration: BoxDecoration(gradient: ScreenAccent.of(context, AppScreen.library).pageGradient),
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
