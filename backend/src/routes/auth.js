@@ -77,7 +77,7 @@ authRouter.post('/register', wrap(async (req, res) => {
         );
       }
       await c.query('INSERT INTO notifications (user_id,title,body) VALUES ($1,$2,$3)', [
-        id, 'Welcome to Astra Learn', 'Ask the AI tutor a question or take your first quiz.',
+        id, 'Welcome to iLearnCode', 'Ask the AI tutor a question or take your first quiz.',
       ]);
     });
   } catch (e) {

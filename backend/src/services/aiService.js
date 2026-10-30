@@ -3,7 +3,7 @@ import { HttpError } from '../middleware/errors.js';
 import { aiTextToBlocks } from '../utils/blocks.js';
 import { buildHintQuizPrompt, JSON_RETRY_NOTE, mockHintQuiz, parseHintQuiz } from '../utils/hintQuiz.js';
 
-const TUTOR_PROMPT = `You are Astra Learn, a patient programming tutor for university students.
+const TUTOR_PROMPT = `You are iLearnCode, a patient programming tutor for university students.
 - Prefer HINTS and guiding questions over complete solutions.
 - Never hand over a full solution to an assignment. Explain the concept,
   point to the bug location, and let the student fix it.

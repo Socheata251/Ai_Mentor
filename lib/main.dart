@@ -48,7 +48,7 @@ class AImentor extends StatelessWidget {
       valueListenable: themeMode,
       builder: (context, mode, _) => MaterialApp(
         navigatorKey: AppNav.navigatorKey,
-        title: 'Astra Learn',
+        title: 'iLearnCode',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,

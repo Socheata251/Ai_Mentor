@@ -1,4 +1,4 @@
--- Astra Learn (Ai_Mentor) database schema - PostgreSQL 14+
+-- iLearnCode (Ai_Mentor) database schema - PostgreSQL 14+
 -- Relationships: 1:1 users-user_settings | 1:N users-conversations-messages
 --                N:M users-courses (user_course_progress)
 

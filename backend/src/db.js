@@ -9,7 +9,8 @@ const isLocal = /@(localhost|127\.0\.0\.1|db)(:|\/)/.test(url);
 const useSsl = process.env.DB_SSL ? process.env.DB_SSL === '1' : !isLocal;
 
 // Which database are we using? (host only, never the password)
-export const dbHost = (url.match(/@([^/:?]+)/) || [])[1] || 'unknown';
+// Take the text after the LAST "@" so a password containing "@" is never printed.
+export const dbHost = url.slice(url.lastIndexOf('@') + 1).split(/[:/?]/)[0] || 'unknown';
 export const dbLabel = `${dbHost} (${isLocal ? 'LOCAL' : 'ONLINE'}, SSL ${useSsl ? 'on' : 'off'})`;
 
 export const pool = new pg.Pool({

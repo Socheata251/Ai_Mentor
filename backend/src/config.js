@@ -25,7 +25,7 @@ export const config = {
     port: Number(env.SMTP_PORT || 465),
     user: env.SMTP_USER || '',
     pass: env.SMTP_PASS || '',
-    from: env.MAIL_FROM || env.SMTP_USER || 'Astra Learn <no-reply@localhost>',
+    from: env.MAIL_FROM || env.SMTP_USER || 'iLearnCode <no-reply@localhost>',
   },
   otp: {
     ttlMinutes: Number(env.OTP_TTL_MINUTES || 10),

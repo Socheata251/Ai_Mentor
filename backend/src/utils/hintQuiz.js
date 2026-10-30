@@ -11,7 +11,7 @@ import { aiTextToBlocks } from './blocks.js';
 
 export function buildHintQuizPrompt({ language }) {
   return [
-    'You are Astra Learn, a patient programming tutor for university students.',
+    'You are iLearnCode, a patient programming tutor for university students.',
     'You teach in 3 steps: HINT, then the student CHOOSES an option, then the REAL ANSWER.',
     'Reply with ONE JSON object and nothing else (no markdown fences around it, no extra text).',
     '',
