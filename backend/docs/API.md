@@ -1,4 +1,4 @@
-# Astra Learn API
+# iLearnCode API
 
 Base URL: `http://localhost:3000` (direct) or `http://localhost:8080` (Docker + nginx).
 All bodies are JSON. Protected routes need `Authorization: Bearer <accessToken>`.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mockHintQuiz, parseHintQuiz } from '../src/utils/hintQuiz.js';
+import { hasQuickCheck, mayAnswerDirectly, mockHintQuiz, parseHintQuiz } from '../src/utils/hintQuiz.js';
 
 const good = {
   type: 'hint_quiz',
@@ -58,5 +58,20 @@ describe('parseHintQuiz', () => {
       assert.ok(q.options.length >= 2 && q.answerBlocks.length > 0);
       assert.ok(q.correctIndex < q.options.length);
     }
+  });
+});
+
+describe('hints-first guard', () => {
+  it('only greetings and explicit answer requests may skip the hint', () => {
+    assert.equal(mayAnswerDirectly('hi'), true);
+    assert.equal(mayAnswerDirectly('Thanks!'), true);
+    assert.equal(mayAnswerDirectly('show me the full answer'), true);
+    assert.equal(mayAnswerDirectly('Explain this clearly with an example: promises'), false);
+    assert.equal(mayAnswerDirectly('Why does my loop never end?'), false);
+  });
+
+  it('hasQuickCheck detects a plain answer without the hint step', () => {
+    assert.equal(hasQuickCheck([{ type: 'text', text: 'full answer' }]), false);
+    assert.equal(hasQuickCheck([{ type: 'text', text: 'hint' }, { type: 'quick_check' }]), true);
   });
 });
