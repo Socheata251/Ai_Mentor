@@ -11,6 +11,7 @@ class TipCallout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final a = ScreenAccent.of(context, AppScreen.tutor);
     final base = Theme.of(context).textTheme.bodySmall!.copyWith(
           color: c.textStrong,
           height: 1.45,
@@ -20,12 +21,12 @@ class TipCallout extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Container(
-        color: c.tile.withValues(alpha: 0.55),
+        color: a.soft,
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(width: 3, color: c.gradientStart),
+              Container(width: 3, color: a.color),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(10),

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/brand_logo.dart';
@@ -18,9 +20,31 @@ class ChatInputBar extends StatelessWidget {
   final bool enabled; // false while the AI is answering
   final VoidCallback onSend;
 
+  /// Web / desktop keyboard: Enter sends, Shift+Enter adds a new line.
+  /// Phones keep the normal on-screen keyboard behaviour.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    final isTouchPlatform =
+        defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    final isEnter =
+        event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter;
+    if (isTouchPlatform ||
+        !isEnter ||
+        event is! KeyDownEvent ||
+        HardwareKeyboard.instance.isShiftPressed ||
+        controller.value.composing.isValid) {
+      // composing = the user is still choosing a letter (Khmer, Chinese...).
+      return KeyEventResult.ignored;
+    }
+    if (enabled && controller.text.trim().isNotEmpty) onSend();
+    return KeyEventResult.handled;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final accent = ScreenAccent.of(context, AppScreen.tutor);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -29,6 +53,7 @@ class ChatInputBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: accent.border),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.08),
@@ -54,7 +79,9 @@ class ChatInputBar extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: TextField(
+            child: Focus(
+              onKeyEvent: _onKey,
+              child: TextField(
               controller: controller,
               focusNode: focusNode,
               minLines: 1,
@@ -75,6 +102,7 @@ class ChatInputBar extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
               ),
             ),
+            ),
           ),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,
@@ -82,11 +110,11 @@ class ChatInputBar extends StatelessWidget {
               final canSend = value.text.trim().isNotEmpty && enabled;
               return _CircleButton(
                 onTap: canSend ? onSend : null,
-                color: canSend ? colors.ink : colors.tile,
+                color: canSend ? accent.color : accent.soft,
                 child: Icon(
                   Icons.arrow_upward_rounded,
                   size: 20,
-                  color: canSend ? colors.onInk : colors.tileIcon,
+                  color: canSend ? accent.onColor : accent.color,
                 ),
               );
             },

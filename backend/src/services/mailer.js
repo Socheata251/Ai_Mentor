@@ -11,7 +11,7 @@ let transport;
 
 export async function sendOtpEmail({ to, code, purpose, ttlMinutes }) {
   const verify = purpose === 'verify';
-  const subject = verify ? `Your Astra Learn verification code: ${code}` : `Your Astra Learn password reset code: ${code}`;
+  const subject = verify ? `Your iLearnCode verification code: ${code}` : `Your iLearnCode password reset code: ${code}`;
   const what = verify ? 'verify your email address' : 'reset your password';
   const text =
     `Your code is ${code}\n\nUse it to ${what}. It works for ${ttlMinutes} minutes.\n` +

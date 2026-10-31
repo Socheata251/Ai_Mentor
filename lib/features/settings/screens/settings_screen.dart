@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/router/smooth_page_route.dart';
 import '../../../data/repositories/user_session.dart';
 import '../../../data/services/auth_service.dart';
@@ -119,23 +120,17 @@ class SettingsScreen extends StatelessWidget {
     return AppShell(selectedIndex: 6, child: Scaffold(
       body: DecoratedBox(
         decoration: BoxDecoration(
-          color: isDark ? theme.scaffoldBackgroundColor : null,
-          gradient: isDark
-              ? null
-              : const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFE4EEFC),
-                    Color(0xFFF2F6FB),
-                    Color(0xFFE9F0F8),
-                  ],
-                ),
+          gradient: ScreenAccent.of(context, AppScreen.settings).pageGradient,
         ),
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              // Phone 440, tablet 620, desktop 760: grows with the window.
+              constraints: BoxConstraints(
+                maxWidth: context.contentWidth >= 900
+                    ? 760
+                    : (context.contentWidth >= 600 ? 620 : 440),
+              ),
               child: ListView(
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),

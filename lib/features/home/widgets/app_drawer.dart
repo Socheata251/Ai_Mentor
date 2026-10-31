@@ -140,7 +140,7 @@ class DrawerMenu extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Astra Learn',
+                        'iLearnCode',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -266,7 +266,7 @@ class DrawerMenu extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
             child: Text(
-              'Astra Learn  ·  v1.0.0',
+              'iLearnCode  ·  v1.0.0',
               style: TextStyle(fontSize: 11, color: colors.textMuted),
             ),
           ),

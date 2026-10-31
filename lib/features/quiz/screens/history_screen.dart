@@ -12,7 +12,7 @@ class QuizHistoryScreen extends StatelessWidget {
     final history = QuizHistory.instance;
 
     return Container(
-      decoration: BoxDecoration(gradient: colors.pageGradient),
+      decoration: BoxDecoration(gradient: ScreenAccent.of(context, AppScreen.quiz).pageGradient),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(

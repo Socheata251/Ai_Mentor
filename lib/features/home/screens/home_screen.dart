@@ -132,7 +132,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         userName: widget.displayName,
         child: Scaffold(
           body: Container(
-            decoration: BoxDecoration(gradient: colors.pageGradient),
+            decoration: BoxDecoration(gradient: ScreenAccent.of(context, AppScreen.home).pageGradient),
             child: SafeArea(child: _buildMain(size)),
           ),
         ),

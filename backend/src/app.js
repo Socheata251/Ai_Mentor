@@ -12,6 +12,7 @@ import { authRouter } from './routes/auth.js';
 import { authSupabaseRouter } from './routes/authSupabase.js';
 import { chatsRouter } from './routes/chats.js';
 import { coursesRouter } from './routes/courses.js';
+import { historyRouter } from './routes/history.js';
 import { lessonsRouter } from './routes/lessons.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { progressRouter } from './routes/progress.js';
@@ -42,6 +43,7 @@ export function createApp() {
   app.use('/api', lessonsRouter);
   app.use('/api/quiz', quizRouter);
   app.use('/api/chats', chatsRouter);
+  app.use('/api/history', historyRouter);
   app.use('/api/ai', aiRouter);
   app.use('/api/schedule', scheduleRouter);
   app.use('/api/progress', progressRouter);

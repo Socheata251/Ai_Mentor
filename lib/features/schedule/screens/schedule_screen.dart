@@ -53,7 +53,7 @@ class ScheduleScreen extends StatelessWidget {
 
     return AppShell(selectedIndex: 6, child: Scaffold(
       body: DecoratedBox(
-        decoration: BoxDecoration(gradient: colors.pageGradient),
+        decoration: BoxDecoration(gradient: ScreenAccent.of(context, AppScreen.schedule).pageGradient),
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(

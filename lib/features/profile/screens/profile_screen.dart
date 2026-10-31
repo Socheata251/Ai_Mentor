@@ -67,7 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       body: DecoratedBox(
-        decoration: BoxDecoration(gradient: c.pageGradient),
+        decoration: BoxDecoration(gradient: ScreenAccent.of(context, AppScreen.profile).pageGradient),
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(

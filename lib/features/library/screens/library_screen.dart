@@ -50,7 +50,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
     return AppShell(selectedIndex: 4, child: Scaffold(
       body: DecoratedBox(
-        decoration: BoxDecoration(gradient: c.pageGradient),
+        decoration: BoxDecoration(gradient: ScreenAccent.of(context, AppScreen.library).pageGradient),
         child: SafeArea(
           child: Center(
             // iPad: keep the content in a readable column.
