@@ -9,7 +9,7 @@ import { errorHandler, notFoundHandler, wrap } from './middleware/errors.js';
 import { adminRouter } from './routes/admin.js';
 import { aiRouter } from './routes/ai.js';
 import { authRouter } from './routes/auth.js';
-import { authSupabaseRouter } from './services/authSupabase.js';
+import { authSupabaseRouter } from './routes/authSupabase.js';
 import { chatsRouter } from './routes/chats.js';
 import { coursesRouter } from './routes/courses.js';
 import { historyRouter } from './routes/history.js';

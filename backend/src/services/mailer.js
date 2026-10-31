@@ -2,15 +2,10 @@ import nodemailer from 'nodemailer';
 import { config } from '../config.js';
 import { HttpError } from '../middleware/errors.js';
 
-/**
- * How OTP emails are sent (first one that is set wins):
- *   1) BREVO_API_KEY   -> Brevo HTTPS API   (works on Render free: no SMTP port needed)
- *   2) RESEND_API_KEY  -> Resend HTTPS API
- *   3) SMTP_HOST       -> SMTP (Gmail etc.). NOTE: Render's free plan blocks SMTP ports.
- * Nothing set -> development: the code is printed in the terminal.
- */
-export const mailConfigured = () =>
-  Boolean(config.mail.brevoKey || config.mail.resendKey || config.smtp.host);
+const { brevoKey, resendKey } = config.mail;
+
+// Any one of these is enough: Brevo / Resend (HTTPS, work on hosts that block SMTP) or SMTP (Gmail app password).
+export const mailConfigured = () => Boolean(brevoKey || resendKey || config.smtp.host);
 
 /** Only while developing without email: the API may return the code so the app can fill it in. */
 export const canExposeDevCode = () => !config.isProd && !mailConfigured();
@@ -19,26 +14,18 @@ let transport;
 
 /** "iLearnCode <me@gmail.com>"  ->  { name: 'iLearnCode', email: 'me@gmail.com' } */
 function parseFrom(from) {
-  const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(from || '');
-  return m ? { name: m[1].trim() || 'iLearnCode', email: m[2].trim() } : { name: 'iLearnCode', email: String(from || '').trim() };
+  const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(from);
+  return m ? { name: m[1].trim() || 'iLearnCode', email: m[2].trim() } : { name: 'iLearnCode', email: from.trim() };
 }
 
-async function postJson(url, headers, body, label) {
-  let res;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json', ...headers },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15_000),
-    });
-  } catch (e) {
-    throw new Error(`${label} could not be reached: ${e.message}`);
-  }
-  if (!res.ok) {
-    const detail = (await res.text().catch(() => '')).slice(0, 300);
-    throw new Error(`${label} answered ${res.status}: ${detail}`);
-  }
+async function postJson(url, headers, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json', ...headers },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
 }
 
 export async function sendOtpEmail({ to, code, purpose, ttlMinutes }) {
@@ -56,37 +43,26 @@ export async function sendOtpEmail({ to, code, purpose, ttlMinutes }) {
     `<p style="color:#888;font-size:12px">If you did not ask for this code, ignore this email.</p></div>`;
 
   if (!mailConfigured()) {
+    // Development only. The code is printed here so you can still sign up without email.
     console.log(`\n[mail:dev] To: ${to}\n[mail:dev] ${subject}\n`);
     return;
   }
 
-  const { from } = config.smtp;
+  const { host, port, user, pass, from } = config.smtp;
+  const sender = parseFrom(from);
   try {
-    if (config.mail.brevoKey) {
-      const sender = parseFrom(from);
-      await postJson(
-        'https://api.brevo.com/v3/smtp/email',
-        { 'api-key': config.mail.brevoKey },
-        { sender, to: [{ email: to }], subject, htmlContent: html, textContent: text },
-        'Brevo',
-      );
-    } else if (config.mail.resendKey) {
-      await postJson(
-        'https://api.resend.com/emails',
-        { authorization: `Bearer ${config.mail.resendKey}` },
-        { from, to: [to], subject, html, text },
-        'Resend',
-      );
+    if (brevoKey) {
+      await postJson('https://api.brevo.com/v3/smtp/email', { 'api-key': brevoKey }, {
+        sender, to: [{ email: to }], subject, htmlContent: html, textContent: text,
+      });
+    } else if (resendKey) {
+      await postJson('https://api.resend.com/emails', { authorization: `Bearer ${resendKey}` }, {
+        from, to: [to], subject, html, text,
+      });
     } else {
-      const { host, port, user, pass } = config.smtp;
       transport ??= nodemailer.createTransport({
-        host,
-        port,
-        secure: port === 465,
-        auth: user ? { user, pass } : undefined,
-        connectionTimeout: 10_000,
-        greetingTimeout: 10_000,
-        socketTimeout: 15_000,
+        host, port, secure: port === 465, auth: user ? { user, pass } : undefined,
+        connectionTimeout: 10_000, socketTimeout: 15_000,
       });
       await transport.sendMail({ from, to, subject, text, html });
     }
