@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler, wrap } from './middleware/errors.js';
 import { adminRouter } from './routes/admin.js';
 import { aiRouter } from './routes/ai.js';
 import { authRouter } from './routes/auth.js';
+import { authSupabaseRouter } from './routes/authSupabase.js';
 import { chatsRouter } from './routes/chats.js';
 import { coursesRouter } from './routes/courses.js';
 import { lessonsRouter } from './routes/lessons.js';
@@ -30,11 +31,11 @@ export function createApp() {
 
   app.get('/api/health', wrap(async (_req, res) => {
     await query('SELECT 1');
-    res.json({ status: 'ok', ai: aiMode() });
+    res.json({ status: 'ok', ai: aiMode(), auth: config.authProvider });
   }));
 
   // Stricter limit on login / register / reset (brute-force protection)
-  app.use('/api/auth', rateLimit({ windowMs: 15 * 60_000, limit: config.authRateMax, standardHeaders: true, legacyHeaders: false }), authRouter);
+  app.use('/api/auth', rateLimit({ windowMs: 15 * 60_000, limit: config.authRateMax, standardHeaders: true, legacyHeaders: false }), config.authProvider === 'supabase' ? authSupabaseRouter : authRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/courses', coursesRouter);

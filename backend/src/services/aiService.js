@@ -1,9 +1,9 @@
 import { config } from '../config.js';
 import { HttpError } from '../middleware/errors.js';
 import { aiTextToBlocks } from '../utils/blocks.js';
-import { buildHintQuizPrompt, JSON_RETRY_NOTE, mockHintQuiz, parseHintQuiz } from '../utils/hintQuiz.js';
+import { buildHintQuizPrompt, hasQuickCheck, HINT_RETRY_NOTE, JSON_RETRY_NOTE, mayAnswerDirectly, mockHintQuiz, parseHintQuiz } from '../utils/hintQuiz.js';
 
-const TUTOR_PROMPT = `You are Astra Learn, a patient programming tutor for university students.
+const TUTOR_PROMPT = `You are iLearnCode, a patient programming tutor for university students.
 - Prefer HINTS and guiding questions over complete solutions.
 - Never hand over a full solution to an assignment. Explain the concept,
   point to the bug location, and let the student fix it.
@@ -156,6 +156,21 @@ export async function generateReply({ history, userText, language = 'English', h
     // The model did not return usable JSON: ask once more, then fall back to plain text.
     const second = await ask({ system, messages: [...messages, { role: 'assistant', content: first || '(empty)' }, { role: 'user', content: JSON_RETRY_NOTE }] });
     blocks = parseHintQuiz(second) ?? aiTextToBlocks(first || second);
+  }
+
+  // Hints-first must hold: if the model skipped the hint for a learning question
+  // (type "direct", or a quiz with a missing field), ask once more for the hint.
+  if (!hasQuickCheck(blocks) && !mayAnswerDirectly(userText)) {
+    try {
+      const retryText = await ask({
+        system,
+        messages: [...messages, { role: 'assistant', content: first || '(empty)' }, { role: 'user', content: HINT_RETRY_NOTE }],
+      });
+      const retried = parseHintQuiz(retryText);
+      if (hasQuickCheck(retried)) blocks = retried;
+    } catch {
+      // keep the plain answer we already have
+    }
   }
   return { blocks, mock: false };
 }

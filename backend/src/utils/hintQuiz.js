@@ -11,7 +11,7 @@ import { aiTextToBlocks } from './blocks.js';
 
 export function buildHintQuizPrompt({ language }) {
   return [
-    'You are Astra Learn, a patient programming tutor for university students.',
+    'You are iLearnCode, a patient programming tutor for university students.',
     'You teach in 3 steps: HINT, then the student CHOOSES an option, then the REAL ANSWER.',
     'Reply with ONE JSON object and nothing else (no markdown fences around it, no extra text).',
     '',
@@ -24,7 +24,8 @@ export function buildHintQuizPrompt({ language }) {
     ' "why":"1-2 sentences: why the correct option is right",',
     ' "answer":"the full, real answer. Markdown allowed: `inline code`, fenced code blocks, **bold**. Keep it clear and short. You may end with a paragraph that starts with Tip:"}',
     '',
-    'If the message is a greeting, thanks, small talk, or the student asks for the full answer or a follow-up explanation, reply:',
+    'Use "direct" ONLY for a greeting, thanks or small talk, or when the student clearly asks to SEE the full answer ("show the answer", "full answer", "give me the solution").',
+    'Requests such as explain, solve, summarize, compare, quiz me, or any coding question are learning questions: they MUST use hint_quiz, never direct.',
     '{"type":"direct","answer":"..."}',
     '',
     'Rules:',
@@ -34,6 +35,21 @@ export function buildHintQuizPrompt({ language }) {
     `- Write hint, question, options, why and answer in ${language}. Keep code and programming identifiers unchanged.`,
     '- Output valid JSON only: write new lines inside strings as \\n and double quotes as \\".',
   ].join('\n');
+}
+
+export const HINT_RETRY_NOTE =
+  'You skipped the hint step. This is a learning question, so reply again with ONLY a hint_quiz JSON object: a hint that does not give the answer, one multiple-choice question with 3 or 4 options, correctIndex, why, and the full answer in "answer".';
+
+/** true when the blocks contain the hint question (the student will see the hint first). */
+export const hasQuickCheck = (blocks) => Array.isArray(blocks) && blocks.some((b) => b.type === 'quick_check');
+
+/** Greetings, thanks and explicit "show me the answer" requests may skip the hint. */
+export function mayAnswerDirectly(userText) {
+  const t = String(userText ?? '').trim();
+  if (t.length === 0) return true;
+  if (/(full|real|whole)\s+(answer|solution)|show\s+(me\s+)?the\s+(answer|solution)|give\s+me\s+the\s+(answer|solution)/i.test(t)) return true;
+  return t.length <= 25 && !t.includes('?') && !t.includes('```') &&
+    /^(hi|hello|hey|thanks|thank you|thx|ok|okay|cool|bye|good (morning|afternoon|evening))\b/i.test(t);
 }
 
 export const JSON_RETRY_NOTE =

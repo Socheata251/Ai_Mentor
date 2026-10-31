@@ -1,7 +1,24 @@
 import pg from 'pg';
 import { config } from './config.js';
 
-export const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 10 });
+const isLocal =
+  !config.databaseUrl ||
+  config.databaseUrl.includes('localhost') ||
+  config.databaseUrl.includes('127.0.0.1') ||
+  config.databaseUrl.includes('@db:'); // docker-compose service name
+
+export const pool = new pg.Pool({
+  connectionString: config.databaseUrl,
+  max: 10,
+  // Supabase requires SSL; local Postgres does not
+  ssl: isLocal ? false : { rejectUnauthorized: false },
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected Postgres error:', err.message);
+});
 
 export const query = (text, params) => pool.query(text, params);
 

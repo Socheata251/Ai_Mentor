@@ -2,9 +2,11 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { query } from '../db.js';
-import { requireAuth } from '../middleware/auth.js';
+import { forgetRole, requireAuth } from '../middleware/auth.js';
 import { badRequest, notFound, unauthorized, wrap } from '../middleware/errors.js';
 import { audit } from '../utils/audit.js';
+import { config } from '../config.js';
+import * as sb from '../services/supabaseAuth.js';
 
 export const USER_SELECT =
   'SELECT u.id, u.name, u.email, u.university, u.semester, r.name AS role FROM users u JOIN roles r ON r.id = u.role_id';
@@ -42,9 +44,18 @@ usersRouter.patch('/me', wrap(async (req, res) => {
 
 usersRouter.post('/me/password', wrap(async (req, res) => {
   const b = z.object({ currentPassword: z.string().min(1).max(72), newPassword: z.string().min(8).max(72) }).parse(req.body);
+  if (b.currentPassword === b.newPassword) throw badRequest('New password must be different');
+  if (config.authProvider === 'supabase') {
+    const { rows } = await query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+    if (!rows[0]) throw unauthorized('Account not found');
+    await sb.checkPassword({ email: rows[0].email, password: b.currentPassword, message: 'Current password is wrong' });
+    await sb.updatePassword(req.accessToken, b.newPassword);
+    await sb.signOut(req.accessToken, 'others').catch(() => {}); // other devices sign in again
+    await audit(req, 'user.change_password');
+    return res.status(204).end();
+  }
   const { rows } = await query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
   if (!rows[0] || !(await bcrypt.compare(b.currentPassword, rows[0].password_hash))) throw unauthorized('Current password is wrong');
-  if (b.currentPassword === b.newPassword) throw badRequest('New password must be different');
   await query('UPDATE users SET password_hash = $2 WHERE id = $1', [req.user.id, await bcrypt.hash(b.newPassword, 12)]);
   await query('UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [req.user.id]);
   await audit(req, 'user.change_password');
@@ -54,6 +65,16 @@ usersRouter.post('/me/password', wrap(async (req, res) => {
 // Soft delete: keeps rows for audit, frees the email, signs out every device.
 usersRouter.delete('/me', wrap(async (req, res) => {
   const b = z.object({ password: z.string().min(1).max(72) }).parse(req.body);
+  if (config.authProvider === 'supabase') {
+    const { rows } = await query('SELECT email FROM users WHERE id = $1 AND deleted_at IS NULL', [req.user.id]);
+    if (!rows[0]) throw unauthorized('Account not found');
+    await sb.checkPassword({ email: rows[0].email, password: b.password });
+    await query('UPDATE users SET deleted_at = now() WHERE id = $1', [req.user.id]);
+    forgetRole(req.user.id);
+    await sb.signOut(req.accessToken, 'global').catch(() => {});
+    await audit(req, 'user.delete', { entity: 'user', entityId: req.user.id });
+    return res.status(204).end();
+  }
   const { rows } = await query('SELECT password_hash FROM users WHERE id = $1 AND deleted_at IS NULL', [req.user.id]);
   if (!rows[0] || !(await bcrypt.compare(b.password, rows[0].password_hash))) throw unauthorized('Password is wrong');
   await query('UPDATE users SET deleted_at = now() WHERE id = $1', [req.user.id]);
