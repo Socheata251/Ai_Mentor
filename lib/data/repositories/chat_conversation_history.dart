@@ -39,4 +39,23 @@ class ChatConversationHistory extends ChangeNotifier {
     _conversations.removeWhere((conversation) => conversation.id == id);
     notifyListeners();
   }
+
+  /// Chats loaded from the database after sign-in. Chats already here are kept as they are.
+  void addLoaded(List<ChatConversation> loaded) {
+    var changed = false;
+    for (final c in loaded) {
+      if (_conversations.any((x) => x.id == c.id)) continue;
+      _conversations.add(c);
+      changed = true;
+    }
+    if (!changed) return;
+    _conversations.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    notifyListeners();
+  }
+
+  /// Sign-out: the next student must not see these chats.
+  void clearAll() {
+    _conversations.clear();
+    notifyListeners();
+  }
 }

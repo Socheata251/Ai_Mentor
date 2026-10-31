@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import '../../core/constants/api_config.dart';
 import '../../core/network/api_client.dart';
 import '../models/user.dart';
 import '../repositories/user_session.dart';
+import 'history_sync.dart';
 import 'storage_service.dart';
 
 /// Result of the first sign-up step. With the backend, [user] is null and the
@@ -35,6 +38,7 @@ class AuthService {
     );
     final user = _userFrom(data['user'] as Map<String, dynamic>);
     UserSession.instance.signIn(user);
+    unawaited(HistorySync.instance.load()); // bring back saved chats and quizzes
     return user;
   }
 
@@ -97,6 +101,7 @@ class AuthService {
     try {
       final data = await _api.get('/api/users/me') as Map<String, dynamic>;
       UserSession.instance.signIn(_userFrom(data['user'] as Map<String, dynamic>));
+      unawaited(HistorySync.instance.load());
       return true;
     } on ApiException catch (e) {
       // Offline at startup: do not throw the student out.
@@ -109,6 +114,7 @@ class AuthService {
   Future<void> logout() async {
     final refresh = TokenStorage.instance.refreshToken;
     UserSession.instance.signOut();
+    HistorySync.instance.clearLocal();
     await TokenStorage.instance.clear();
     if (ApiConfig.useBackend && refresh != null) {
       try {

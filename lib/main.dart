@@ -10,6 +10,7 @@ import 'data/repositories/user_session.dart';
 import 'data/services/ai_service.dart';
 import 'data/services/auth_service.dart';
 import 'data/services/remote_ai_service.dart';
+import 'data/services/history_sync.dart';
 import 'features/auth/screens/sign_in_screen.dart';
 import 'features/home/screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -22,6 +23,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (ApiConfig.useBackend) AiServices.current = const RemoteAiService();
+  HistorySync.instance.attach(); // save chats + quizzes to the database
 
   // Refresh token rejected -> back to Sign in.
   ApiClient.instance.onSessionExpired = () {

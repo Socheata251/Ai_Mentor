@@ -16,6 +16,13 @@ class ChatPromptHistory extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Questions loaded from the database (only when nothing was asked yet).
+  void replaceAllIfEmpty(List<ChatMessage> prompts) {
+    if (_prompts.isNotEmpty) return;
+    _prompts.addAll(prompts);
+    notifyListeners();
+  }
+
   void clear() {
     _prompts.clear();
     notifyListeners();

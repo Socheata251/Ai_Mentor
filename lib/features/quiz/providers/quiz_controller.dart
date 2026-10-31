@@ -103,6 +103,6 @@ class QuizController extends ChangeNotifier {
       total: s.total,
       xp: s.xp,
       date: DateTime.now(),
-    ));
+    ), answers: s.answers);
   }
 }
