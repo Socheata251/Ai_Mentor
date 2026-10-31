@@ -6,8 +6,8 @@ import '../widgets/quiz_history.dart';
 /// State for ONE quiz run. Plain ChangeNotifier (no extra packages).
 class QuizController extends ChangeNotifier {
   QuizController(this.topic)
-      : _answers = List<int?>.filled(topic.questions.length, null),
-        _hintUsed = List<bool>.filled(topic.questions.length, false);
+    : _answers = List<int?>.filled(topic.questions.length, null),
+      _hintUsed = List<bool>.filled(topic.questions.length, false);
 
   // ---- Rules (change freely) ----
   static const secondsPerQuestion = 20;
@@ -48,7 +48,8 @@ class QuizController extends ChangeNotifier {
   int get xp => _xp;
 
   /// 0..1, counts the current question once it is answered.
-  double get progress => total == 0 ? 0 : (_index + (isAnswered ? 1 : 0)) / total;
+  double get progress =>
+      total == 0 ? 0 : (_index + (isAnswered ? 1 : 0)) / total;
 
   void answer(int option, {required int secondsLeft}) {
     if (isAnswered) return;
@@ -95,14 +96,16 @@ class QuizController extends ChangeNotifier {
     if (_recorded) return;
     _recorded = true;
     final s = summary();
-    QuizHistory.instance.add(QuizRecord(
-      topicId: topic.id,
-      topicTitle: topic.title,
-      category: topic.category,
-      score: s.score,
-      total: s.total,
-      xp: s.xp,
-      date: DateTime.now(),
-    ));
+    QuizHistory.instance.add(
+      QuizRecord(
+        topicId: topic.id,
+        topicTitle: topic.title,
+        category: topic.category,
+        score: s.score,
+        total: s.total,
+        xp: s.xp,
+        date: DateTime.now(),
+      ),
+    );
   }
 }
