@@ -6,7 +6,10 @@ import '../../../core/router/smooth_page_route.dart';
 import '../../ai_tutor/screens/ai_tutor_screen.dart';
 import '../../quiz/screens/quiz_screen.dart';
 import '../../../core/widgets/app_shell.dart';
+import '../../../data/models/quiz.dart';
 import '../../../data/repositories/user_session.dart';
+import '../../quiz/widgets/quiz_history.dart';
+import '../../quiz/widgets/quiz_repository.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key, this.userName});
@@ -23,32 +26,30 @@ class ProgressScreen extends StatefulWidget {
 class _ProgressScreenState extends State<ProgressScreen> {
   String _term = 'This Term';
 
-  static const _topics = <_TopicProgress>[
-    _TopicProgress('Variables', 0.90),
-    _TopicProgress('Loops', 0.80),
-    _TopicProgress('Recursion', 0.45, warning: true),
-    _TopicProgress('Object-Oriented (OOP)', 0.88),
-    _TopicProgress('Data Structures (Trees & Sorting)', 0.85, warning: true),
-  ];
-
-  void _openTutor() {
+  void _openTutor(String topic) {
     Navigator.push(
       context,
       smoothPageRoute(
         builder: (_) => AiTutorScreen(
           userName: widget.displayName,
           useDemo: false,
-          topic: 'Recursion',
-          initialPrompt: 'Help me review recursion. Start with a hint.',
+          topic: topic,
+          initialPrompt: 'Help me review $topic. Start with a hint.',
         ),
       ),
     );
   }
 
-  void _openQuiz() {
+  /// Opens the quiz of [topicId] when the quiz bank has it, else the topic picker.
+  void _openQuiz([String? topicId]) {
+    final known = topicId != null &&
+        const MockQuizRepository().topics().any((t) => t.id == topicId);
     Navigator.push(
       context,
-      smoothPageRoute(builder: (_) => const QuizScreen()),
+      smoothPageRoute(
+        builder: (_) =>
+            known ? QuizScreen(initialTopicId: topicId) : const QuizScreen(),
+      ),
     );
   }
 
@@ -58,8 +59,19 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilds whenever a quiz is finished or the history is loaded after sign-in.
+    return ListenableBuilder(
+      listenable: QuizHistory.instance,
+      builder: (context, _) => _buildPage(context),
+    );
+  }
+
+  Widget _buildPage(BuildContext context) {
     final colors = context.colors;
     final theme = Theme.of(context);
+    final history = QuizHistory.instance;
+    final stats = _ProgressStats.from(history.records, _term);
+    final weakest = stats.weakest;
 
     return AppShell(
       selectedIndex: 5,
@@ -155,9 +167,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
                               Expanded(
                                 child: Column(
                                   children: [
-                                    _SummaryCard(term: _term),
+                                    _SummaryCard(stats: stats),
                                     const SizedBox(height: 16),
-                                    _TopicsCard(topics: _topics),
+                                    _TopicsCard(topics: stats.topics, quizzes: stats.quizzes),
                                   ],
                                 ),
                               ),
@@ -165,11 +177,19 @@ class _ProgressScreenState extends State<ProgressScreen> {
                               Expanded(
                                 child: Column(
                                   children: [
-                                    _RecommendationCard(onStart: _openTutor),
+                                    _RecommendationCard(
+                                      weakest: weakest,
+                                      onStart: () => weakest == null
+                                          ? _openQuiz()
+                                          : _openTutor(weakest.name),
+                                    ),
                                     const SizedBox(height: 16),
-                                    const _StreakCard(),
+                                    _StreakCard(history: history),
                                     const SizedBox(height: 16),
-                                    _PracticeCard(onStartQuiz: _openQuiz),
+                                    _PracticeCard(
+                                      weakest: weakest,
+                                      onStartQuiz: () => _openQuiz(weakest?.topicId),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -177,15 +197,23 @@ class _ProgressScreenState extends State<ProgressScreen> {
                           ),
                         ]
                       : [
-                          _SummaryCard(term: _term),
+                          _SummaryCard(stats: stats),
                           const SizedBox(height: 12),
-                          _TopicsCard(topics: _topics),
+                          _TopicsCard(topics: stats.topics, quizzes: stats.quizzes),
                           const SizedBox(height: 12),
-                          _RecommendationCard(onStart: _openTutor),
+                          _RecommendationCard(
+                            weakest: weakest,
+                            onStart: () => weakest == null
+                                ? _openQuiz()
+                                : _openTutor(weakest.name),
+                          ),
                           const SizedBox(height: 12),
-                          const _StreakCard(),
+                          _StreakCard(history: history),
                           const SizedBox(height: 12),
-                          _PracticeCard(onStartQuiz: _openQuiz),
+                          _PracticeCard(
+                            weakest: weakest,
+                            onStartQuiz: () => _openQuiz(weakest?.topicId),
+                          ),
                         ],
                 ),
               ),
@@ -205,9 +233,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: _openQuiz,
+                    onPressed: () => _openQuiz(weakest?.topicId),
                     icon: const Icon(Icons.quiz_outlined, size: 17),
-                    label: const Text('Generate Quiz on Recursion (10 Qs)'),
+                    label: Text(
+                      weakest == null
+                          ? 'Take a quiz'
+                          : 'Generate Quiz on ${weakest.name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(42),
                       backgroundColor: colors.ink,
@@ -225,14 +259,91 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.term});
+/// Numbers for one term, computed from the quizzes the student really took.
+class _ProgressStats {
+  _ProgressStats._({
+    required this.answered,
+    required this.correct,
+    required this.quizzes,
+    required this.topics,
+    required this.weeklyGain,
+  });
 
-  final String term;
+  final int answered;
+  final int correct;
+  final int quizzes;
+  final List<_TopicProgress> topics; // newest quiz first
+  final int? weeklyGain; // percentage points better than before this week
+
+  double? get accuracy => answered == 0 ? null : correct / answered;
+
+  /// The topic with the lowest average score (null when nothing was taken).
+  _TopicProgress? get weakest => topics.isEmpty
+      ? null
+      : topics.reduce((a, b) => a.value <= b.value ? a : b);
+
+  static double? _accuracy(List<QuizRecord> list) {
+    final total = list.fold<int>(0, (sum, r) => sum + r.total);
+    if (total == 0) return null;
+    return list.fold<int>(0, (sum, r) => sum + r.score) / total;
+  }
+
+  factory _ProgressStats.from(List<QuizRecord> records, String term) {
+    final now = DateTime.now();
+    bool inTerm(QuizRecord r) {
+      final age = now.difference(r.date).inDays;
+      return switch (term) {
+        'Last Term' => age >= 120 && age < 240,
+        'All Time' => true,
+        _ => age < 120, // This Term = the last 4 months
+      };
+    }
+
+    final list = records.where(inTerm).toList();
+
+    final today = DateTime(now.year, now.month, now.day);
+    final weekStart = today.subtract(Duration(days: now.weekday - 1));
+    final thisWeek = list.where((r) => !r.date.toLocal().isBefore(weekStart)).toList();
+    final before = list.where((r) => r.date.toLocal().isBefore(weekStart)).toList();
+    int? gain;
+    final a = _accuracy(thisWeek);
+    final b = _accuracy(before);
+    if (a != null && b != null) gain = ((a - b) * 100).round();
+
+    final byTopic = <String, List<QuizRecord>>{};
+    for (final r in list) {
+      byTopic.putIfAbsent(r.topicId, () => []).add(r);
+    }
+    final topics = <_TopicProgress>[
+      for (final e in byTopic.entries.take(6))
+        () {
+          final avg = e.value.fold<double>(0, (sum, r) => sum + r.percent) /
+              e.value.length;
+          return _TopicProgress(e.key, e.value.first.topicTitle, avg,
+              warning: avg < 0.6);
+        }(),
+    ];
+
+    return _ProgressStats._(
+      answered: list.fold<int>(0, (sum, r) => sum + r.total),
+      correct: list.fold<int>(0, (sum, r) => sum + r.score),
+      quizzes: list.length,
+      topics: topics,
+      weeklyGain: gain,
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({required this.stats});
+
+  final _ProgressStats stats;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final accuracy = stats.accuracy;
+    final gain = stats.weeklyGain;
     return _ProgressCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +355,7 @@ class _SummaryCard extends StatelessWidget {
               Expanded(
                 child: _MetricTile(
                   label: 'Questions answered',
-                  value: term == 'Last Term' ? '28' : '34',
+                  value: '${stats.answered}',
                   icon: Icons.menu_book_outlined,
                 ),
               ),
@@ -252,8 +363,8 @@ class _SummaryCard extends StatelessWidget {
               Expanded(
                 child: _MetricTile(
                   label: 'Accuracy',
-                  value: term == 'Last Term' ? '68%' : '72%',
-                  detail: '+4% this week',
+                  value: accuracy == null ? '—' : '${(accuracy * 100).round()}%',
+                  detail: (gain != null && gain > 0) ? '+$gain% this week' : null,
                   icon: Icons.track_changes_rounded,
                 ),
               ),
@@ -345,9 +456,10 @@ class _MetricTile extends StatelessWidget {
 }
 
 class _TopicsCard extends StatelessWidget {
-  const _TopicsCard({required this.topics});
+  const _TopicsCard({required this.topics, required this.quizzes});
 
   final List<_TopicProgress> topics;
+  final int quizzes;
 
   @override
   Widget build(BuildContext context) {
@@ -358,6 +470,14 @@ class _TopicsCard extends StatelessWidget {
         children: [
           Text('Topics covered', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 12),
+          if (topics.isEmpty)
+            Text(
+              'No quiz results yet. Finish a quiz and your topics will appear here.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontSize: 10,
+                color: colors.textMuted,
+              ),
+            ),
           for (var index = 0; index < topics.length; index++) ...[
             _TopicRow(topic: topics[index]),
             if (index != topics.length - 1) const SizedBox(height: 11),
@@ -377,7 +497,10 @@ class _TopicsCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Text('5 topics', style: Theme.of(context).textTheme.labelSmall),
+              Text(
+                '$quizzes ${quizzes == 1 ? 'quiz' : 'quizzes'}',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
             ],
           ),
         ],
@@ -387,8 +510,10 @@ class _TopicsCard extends StatelessWidget {
 }
 
 class _TopicProgress {
-  const _TopicProgress(this.name, this.value, {this.warning = false});
+  const _TopicProgress(this.topicId, this.name, this.value,
+      {this.warning = false});
 
+  final String topicId;
   final String name;
   final double value;
   final bool warning;
@@ -443,8 +568,9 @@ class _TopicRow extends StatelessWidget {
 }
 
 class _RecommendationCard extends StatelessWidget {
-  const _RecommendationCard({required this.onStart});
+  const _RecommendationCard({required this.weakest, required this.onStart});
 
+  final _TopicProgress? weakest;
   final VoidCallback onStart;
 
   @override
@@ -461,14 +587,18 @@ class _RecommendationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Review recursion — your weakest topic',
+                  weakest == null
+                      ? 'Take your first quiz'
+                      : 'Review ${weakest!.name} — your weakest topic',
                   style: Theme.of(
                     context,
                   ).textTheme.labelMedium?.copyWith(fontSize: 10),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'A short guided practice can build your confidence.',
+                  weakest == null
+                      ? 'Your progress is built from your quiz results.'
+                      : 'A short guided practice can build your confidence.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontSize: 9,
                     color: colors.textMuted,
@@ -479,7 +609,7 @@ class _RecommendationCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           IconButton.filledTonal(
-            tooltip: 'Start recursion review',
+            tooltip: weakest == null ? 'Take a quiz' : 'Start review',
             onPressed: onStart,
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.play_arrow_rounded, size: 17),
@@ -491,15 +621,35 @@ class _RecommendationCard extends StatelessWidget {
 }
 
 class _StreakCard extends StatelessWidget {
-  const _StreakCard();
+  const _StreakCard({required this.history});
+
+  final QuizHistory history;
 
   static const _days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  static const _hours = [1.2, 2.2, 3.2, 1.8, 3.3, 0.25, 0.15];
+
+  /// Quizzes finished on each day of this week (Monday first).
+  List<int> _perDay() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final weekStart = today.subtract(Duration(days: now.weekday - 1));
+    final counts = List<int>.filled(7, 0);
+    for (final r in history.records) {
+      final d = r.date.toLocal();
+      final day = DateTime(d.year, d.month, d.day);
+      final i = day.difference(weekStart).inDays;
+      if (i >= 0 && i < 7) counts[i]++;
+    }
+    return counts;
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final textTheme = Theme.of(context).textTheme;
+    final perDay = _perDay();
+    final weekTotal = perDay.fold<int>(0, (a, b) => a + b);
+    final maxCount = perDay.fold<int>(1, (a, b) => b > a ? b : a);
+    final streak = history.streakDays;
     return _ProgressCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,7 +662,10 @@ class _StreakCard extends StatelessWidget {
                 size: 15,
               ),
               const SizedBox(width: 6),
-              Text('Study streak: 5 days', style: textTheme.labelMedium),
+              Text(
+                'Study streak: $streak ${streak == 1 ? 'day' : 'days'}',
+                style: textTheme.labelMedium,
+              ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
@@ -521,7 +674,7 @@ class _StreakCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Top 15%',
+                  '${history.totalXp} XP',
                   style: textTheme.labelSmall?.copyWith(
                     color: colors.tileIcon,
                     fontSize: 8,
@@ -532,7 +685,7 @@ class _StreakCard extends StatelessWidget {
           ),
           const SizedBox(height: 7),
           Text(
-            'Total time spent: 4h 25m this week',
+            '$weekTotal ${weekTotal == 1 ? 'quiz' : 'quizzes'} this week',
             style: textTheme.bodySmall?.copyWith(fontSize: 9),
           ),
           const SizedBox(height: 12),
@@ -549,10 +702,10 @@ class _StreakCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Container(
-                            height: 36 * _hours[index] / 3.3,
+                            height: 36 * perDay[index] / maxCount,
                             constraints: const BoxConstraints(minHeight: 3),
                             decoration: BoxDecoration(
-                              color: index == 2 || index == 4
+                              color: perDay[index] > 0
                                   ? colors.gradientStart
                                   : colors.tile,
                               borderRadius: const BorderRadius.vertical(
@@ -579,8 +732,9 @@ class _StreakCard extends StatelessWidget {
 }
 
 class _PracticeCard extends StatelessWidget {
-  const _PracticeCard({required this.onStartQuiz});
+  const _PracticeCard({required this.weakest, required this.onStartQuiz});
 
+  final _TopicProgress? weakest;
   final VoidCallback onStartQuiz;
 
   @override
@@ -603,7 +757,9 @@ class _PracticeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Solve 10 tailored recursion challenges to boost mastery.',
+                  weakest == null
+                      ? 'Pick a topic and test yourself.'
+                      : 'Practice ${weakest!.name} again to boost mastery.',
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(fontSize: 9),

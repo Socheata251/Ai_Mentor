@@ -16,6 +16,9 @@ class LibraryController extends ChangeNotifier {
   int? _semester; // null = all
   String _query = '';
 
+  /// Every course, ignoring search and semester filter.
+  List<Course> get allCourses => _all;
+
   UnmodifiableListView<Course> get courses => UnmodifiableListView(_visible);
   int? get selectedSemester => _semester;
 

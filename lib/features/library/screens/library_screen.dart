@@ -6,6 +6,8 @@ import '../../../core/utils/responsive.dart';
 import '../../../core/utils/snackbars.dart';
 import '../../../core/widgets/round_icon_button.dart';
 import '../../../data/models/course.dart';
+import '../../quiz/screens/quiz_screen.dart';
+import '../../quiz/widgets/course_quiz_generator.dart';
 import '../providers/library_controller.dart';
 import 'course_lessons_screen.dart';
 import '../widgets/course_tile.dart';
@@ -44,6 +46,106 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
+  /// The course the "Start AI Test" banner is about (CS 213 when it exists).
+  Course? get _examCourse {
+    final all = _library.allCourses;
+    for (final c in all) {
+      if (c.code.replaceAll(' ', '') == 'CS213') return c;
+    }
+    for (final c in all) {
+      if (c.category == CourseCategory.dataStructures) return c;
+    }
+    return all.isEmpty ? null : all.first;
+  }
+
+  void _startMockQuiz() {
+    final course = _examCourse;
+    Navigator.push(
+      context,
+      smoothPageRoute<void>(
+        builder: (_) => course == null
+            ? const QuizScreen()
+            : QuizScreen(
+                initialTopic: CourseQuizGenerator.generate(course, count: 10),
+              ),
+      ),
+    );
+  }
+
+  /// "Syllabus PDF": the modules of the chosen semester as a list.
+  void _showSyllabus() {
+    final courses = _library.courses;
+    final sem = _library.selectedSemester;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.95,
+        builder: (ctx, scroll) => ListView(
+          controller: scroll,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          children: [
+            Text(
+              sem == null ? 'Syllabus · All semesters' : 'Syllabus · Semester $sem',
+              style: Theme.of(ctx).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 10),
+            if (courses.isEmpty) const Text('No courses to show.'),
+            for (final c in courses)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('${c.code} · ${c.title}'),
+                subtitle: Text('${c.topics}\nSemester ${c.semester} · ${c.credits} credits'),
+                isThreeLine: true,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openCourse(c);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showMore() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.filter_alt_off_rounded),
+              title: const Text('Clear search and filters'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _search.clear();
+                _library.setQuery('');
+                _library.selectSemester(null);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.quiz_outlined),
+              title: const Text('Take a quiz'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  smoothPageRoute<void>(builder: (_) => const QuizScreen()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -60,7 +162,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
               child: Column(
                 children: [
-                  const _Header(),
+                  _Header(onMore: _showMore),
                   Expanded(
                     child: ListenableBuilder(
                       listenable: _library,
@@ -119,15 +221,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
         if (i == 2) {
           return _SectionHeader(
             count: n,
-            onSyllabus: () => showComingSoon(context, 'Syllabus PDF'),
+            onSyllabus: _showSyllabus,
           );
         }
         if (i == 3 + courseRows) {
           return Padding(
             padding: const EdgeInsets.only(top: 6),
             child: ExamBanner(
-              onStart: () => showComingSoon(context, 'AI mock quiz'),
-              // TODO: open the Quiz generator once that screen exists.
+              subtitle: _examCourse == null
+                  ? 'Test yourself with a mock quiz'
+                  : 'Test yourself on ${_examCourse!.code} ${_examCourse!.title}',
+              onStart: _startMockQuiz,
             ),
           );
         }
@@ -174,7 +278,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
 // ---------------------------------------------------------------------
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({required this.onMore});
+
+  final VoidCallback onMore;
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +300,7 @@ class _Header extends StatelessWidget {
           RoundIconButton(
             icon: Icons.more_horiz_rounded,
             tooltip: 'More',
-            onTap: () => showComingSoon(context, 'Saved lessons'),
+            onTap: onMore,
           ),
         ],
       ),
