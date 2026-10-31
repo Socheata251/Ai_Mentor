@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
@@ -8,246 +9,297 @@ import '../../features/quiz/widgets/quiz_history.dart';
 import '../models/message.dart';
 import '../models/quiz.dart';
 import '../repositories/chat_conversation_history.dart';
+import '../repositories/user_session.dart';
 
-/// Saves quiz + chat history to the backend (Supabase) and loads it back after sign-in.
+/// Copies chats + finished quizzes to the database and loads them back after
+/// sign-in. Call [attach] once at startup (main.dart). Every network failure is
+/// swallowed: the app keeps working from memory when offline.
+///
+/// Backend: GET /api/history, PUT /api/history/chats/:id,
+///          DELETE /api/chats/:id, POST /api/quiz/attempts
 class HistorySync {
   HistorySync._();
   static final HistorySync instance = HistorySync._();
 
-  final _api = ApiClient.instance;
-  final Map<String, Timer> _chatTimers = {};
-  final Map<String, int> _synced = {}; // chat id -> signature already saved
-  bool _started = false;
-  bool _muted = false; // true while loading / clearing: do not save or delete
+  final ApiClient _api = ApiClient.instance;
+  final _rng = Random.secure();
 
-  /// Call once in main(), before runApp.
-  void start() {
-    if (_started || !ApiConfig.useBackend) return;
-    _started = true;
+  bool _attached = false;
+  bool _loading = false;
+  bool _wasSignedIn = false;
 
-    // Quiz: save every finished quiz.
-    QuizHistory.instance.onAdded = (record, answers) {
-      unawaited(_saveQuiz(record, answers));
-    };
+  /// Local chat id -> UUID used by the server (local ids are not UUIDs).
+  final Map<String, String> _uuids = {};
 
-    // Chat: save a chat 1 second after the last change.
-    ChatConversationHistory.instance.addListener(_onChatChanged);
+  /// Local chat id -> "<messageCount>|<updatedAt>" last sent, to find changes.
+  final Map<String, String> _synced = {};
+  final Map<String, Timer> _timers = {};
+
+  static final _uuidRe = RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+    caseSensitive: false,
+  );
+
+  bool get _signedIn => UserSession.instance.email.isNotEmpty;
+
+  /// Hooks everything up. Safe to call more than once.
+  void attach() {
+    if (_attached || !ApiConfig.useBackend) return;
+    _attached = true;
+
+    QuizHistory.instance.onAdded = _saveQuiz;
+    ChatConversationHistory.instance.addListener(_onChatsChanged);
+    UserSession.instance.addListener(_onSessionChanged);
+    _onSessionChanged(); // already signed in before attach()
   }
 
-  // ---------- LOAD (after sign-in) ----------
+  // ---------------------------------------------------------------- session
+
+  void _onSessionChanged() {
+    final now = _signedIn;
+    if (now && !_wasSignedIn) {
+      _wasSignedIn = true;
+      unawaited(load());
+    } else if (!now && _wasSignedIn) {
+      _wasSignedIn = false;
+      clear();
+    }
+  }
+
+  /// Sign-out: the next student must not see this history. Safe to call twice.
+  void clear() {
+    for (final t in _timers.values) {
+      t.cancel();
+    }
+    _timers.clear();
+    _uuids.clear();
+    _synced.clear();
+    QuizHistory.instance.clearAll();
+    _loading = true; // do not send the deletions below to the server
+    final h = ChatConversationHistory.instance;
+    for (final c in List.of(h.conversations)) {
+      h.remove(c.id);
+    }
+    _loading = false;
+  }
+
+  // ------------------------------------------------------------------- load
+
   Future<void> load() async {
-    if (!ApiConfig.useBackend) return;
     try {
       final data = await _api.get('/api/history') as Map<String, dynamic>;
+      _loading = true;
 
-      final attempts = (data['attempts'] as List? ?? const [])
-          .cast<Map<String, dynamic>>()
-          .map(_recordFrom)
-          .toList();
+      final attempts = [
+        for (final a in (data['attempts'] as List? ?? const []))
+          _recordFrom(a as Map<String, dynamic>),
+      ];
+      QuizHistory.instance.replaceAllIfEmpty(attempts);
 
-      _muted = true;
-      try {
-        QuizHistory.instance.replaceAllIfEmpty(attempts);
-        final chats = (data['chats'] as List? ?? const [])
-            .cast<Map<String, dynamic>>();
-        for (final c in chats) {
-          final msgs = (c['messages'] as List? ?? const [])
-              .cast<Map<String, dynamic>>()
-              .map(_messageFrom)
-              .toList();
-          ChatConversationHistory.instance.restore(c['id'] as String, msgs);
-        }
-        _rememberSaved(); // these chats are already on the server
-      } finally {
-        _muted = false;
+      final history = ChatConversationHistory.instance;
+      final have = history.conversations.map((c) => c.id).toSet();
+      // oldest first, because save() puts the chat at the top of the list
+      for (final c in (data['chats'] as List? ?? const []).reversed) {
+        final chat = c as Map<String, dynamic>;
+        final id = chat['id'] as String;
+        if (have.contains(id)) continue;
+        final messages = [
+          for (final m in (chat['messages'] as List? ?? const []))
+            _messageFrom(m as Map<String, dynamic>),
+        ];
+        if (messages.isEmpty) continue;
+        _uuids[id] = id;
+        history.save(id, messages);
       }
+      _markAllSynced();
     } catch (e) {
-      debugPrint('HistorySync.load failed: $e');
-    }
-  }
-
-  /// Sign-out: remove the old user's history from memory (not from the server).
-  void clear() {
-    _muted = true;
-    try {
-      for (final t in _chatTimers.values) {
-        t.cancel();
-      }
-      _chatTimers.clear();
-      _synced.clear();
-      QuizHistory.instance.clearAll();
-      ChatConversationHistory.instance.clearAll();
+      debugPrint('HistorySync load failed: $e');
     } finally {
-      _muted = false;
+      _loading = false;
     }
   }
 
-  // ---------- SAVE QUIZ ----------
-  Future<void> _saveQuiz(QuizRecord r, List<int?>? answers) async {
-    try {
-      await _api.post('/api/quiz/attempts', body: {
-        'topicId': r.topicId,
-        // one entry per question: option index, null = time ran out
-        'answers': [
-          for (final a in answers ?? const <int?>[]) (a == null || a < 0) ? null : a,
-        ],
-        // same key = same attempt, so a retry never saves it twice
-        'clientRef': '${r.topicId}-${r.date.microsecondsSinceEpoch}',
-      });
-    } catch (e) {
-      debugPrint('HistorySync quiz save failed: $e');
+  // ------------------------------------------------------------------ chats
+
+  String _stamp(ChatConversation c) =>
+      '${c.messages.length}|${c.updatedAt.toIso8601String()}';
+
+  void _markAllSynced() {
+    _synced
+      ..clear()
+      ..addEntries(ChatConversationHistory.instance.conversations
+          .map((c) => MapEntry(c.id, _stamp(c))));
+  }
+
+  void _onChatsChanged() {
+    if (_loading || !_signedIn) return;
+    final current = {
+      for (final c in ChatConversationHistory.instance.conversations) c.id: c,
+    };
+
+    for (final c in current.values) {
+      if (_synced[c.id] == _stamp(c)) continue;
+      _timers[c.id]?.cancel();
+      // debounce: the controller saves several times while the AI answers
+      _timers[c.id] = Timer(const Duration(seconds: 2), () => _saveChat(c.id));
+    }
+    for (final id in _synced.keys.toList()) {
+      if (!current.containsKey(id)) {
+        _synced.remove(id);
+        _timers.remove(id)?.cancel();
+        unawaited(_deleteChat(id));
+      }
     }
   }
 
-  // ---------- SAVE / DELETE CHAT ----------
-  int _signature(ChatConversation c) =>
-      Object.hash(c.messages.length, c.updatedAt.microsecondsSinceEpoch);
-
-  void _rememberSaved() {
+  Future<void> _saveChat(String localId) async {
+    _timers.remove(localId);
+    ChatConversation? chat;
     for (final c in ChatConversationHistory.instance.conversations) {
-      _synced[c.id] = _signature(c);
+      if (c.id == localId) chat = c;
     }
-  }
+    if (chat == null) return;
 
-  void _onChatChanged() {
-    if (_muted) return;
-    final current = ChatConversationHistory.instance.conversations;
-
-    // Deleted in the app -> delete on the server too.
-    final ids = current.map((c) => c.id).toSet();
-    for (final id in _synced.keys.where((id) => !ids.contains(id)).toList()) {
-      _synced.remove(id);
-      _chatTimers.remove(id)?.cancel();
-      unawaited(_deleteChat(id));
-    }
-
-    // New or changed -> save.
-    for (final c in current) {
-      final sig = _signature(c);
-      if (_synced[c.id] == sig) continue;
-      _chatTimers[c.id]?.cancel();
-      _chatTimers[c.id] = Timer(const Duration(seconds: 1), () => _saveChat(c.id));
-    }
-  }
-
-  Future<void> _saveChat(String id) async {
-    ChatConversation? c;
-    for (final x in ChatConversationHistory.instance.conversations) {
-      if (x.id == id) c = x;
-    }
-    if (c == null || !_isUuid(c.id)) return; // the server only accepts UUID ids
+    final stamp = _stamp(chat);
+    final messages = chat.messages.length > 60
+        ? chat.messages.sublist(chat.messages.length - 60)
+        : chat.messages;
+    final title = chat.title.trim();
     try {
-      final all = c.messages;
-      final msgs = all.length > 60 ? all.sublist(all.length - 60) : all;
-      final title = c.title.trim().isEmpty ? 'New chat' : c.title.trim();
-      await _api.put('/api/history/chats/${c.id}', body: {
+      await _api.put('/api/history/chats/${_uuidFor(localId)}', body: {
         'title': title.length > 120 ? title.substring(0, 120) : title,
         'messages': [
-          for (final m in msgs)
+          for (final m in messages)
             {
               'role': m.role == MessageRole.user ? 'user' : 'ai',
-              'blocks': m.blocks.map(_blockToJson).toList(),
+              'blocks': [for (final b in m.blocks) _blockToJson(b)],
               'sentAt': m.sentAt.toUtc().toIso8601String(),
             },
         ],
       });
-      _synced[c.id] = _signature(c);
+      _synced[localId] = stamp;
     } catch (e) {
       debugPrint('HistorySync chat save failed: $e');
     }
   }
 
-  Future<void> _deleteChat(String id) async {
-    if (!_isUuid(id)) return;
+  Future<void> _deleteChat(String localId) async {
+    final uuid = _uuids.remove(localId);
+    if (uuid == null) return;
     try {
-      await _api.delete('/api/chats/$id');
+      await _api.delete('/api/chats/$uuid');
     } catch (e) {
       debugPrint('HistorySync chat delete failed: $e');
     }
   }
 
-  static final _uuid = RegExp(
-    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-    caseSensitive: false,
-  );
-  static bool _isUuid(String s) => _uuid.hasMatch(s);
+  String _uuidFor(String localId) {
+    if (_uuidRe.hasMatch(localId)) return localId;
+    return _uuids.putIfAbsent(localId, _newUuid);
+  }
 
-  // ---------- JSON <-> models ----------
-  static Map<String, dynamic> _blockToJson(MessageBlock b) => switch (b) {
-        TextBlock t => {'type': 'text', 'text': t.text},
-        TipBlock t => {'type': 'tip', 'text': t.text},
-        CodeSnippetBlock c => {
+  String _newUuid() {
+    final b = List<int>.generate(16, (_) => _rng.nextInt(256));
+    b[6] = (b[6] & 0x0f) | 0x40; // version 4
+    b[8] = (b[8] & 0x3f) | 0x80; // variant
+    final h = b.map((x) => x.toRadixString(16).padLeft(2, '0')).join();
+    return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-'
+        '${h.substring(16, 20)}-${h.substring(20)}';
+  }
+
+  // ------------------------------------------------------------------ quiz
+
+  void _saveQuiz(QuizRecord record, List<int?>? answers) {
+    if (!_signedIn || answers == null || answers.isEmpty) return;
+    unawaited(() async {
+      try {
+        await _api.post('/api/quiz/attempts', body: {
+          'topicId': record.topicId,
+          // -1 = time ran out -> null for the server
+          'answers': [for (final a in answers) (a == null || a < 0) ? null : a],
+          'clientRef':
+              '${record.topicId}-${record.date.toUtc().microsecondsSinceEpoch}',
+        });
+      } catch (e) {
+        debugPrint('HistorySync quiz save failed: $e');
+      }
+    }());
+  }
+
+  QuizRecord _recordFrom(Map<String, dynamic> j) => QuizRecord(
+        topicId: j['topicId'] as String,
+        topicTitle: j['topicTitle'] as String,
+        category: QuizCategory.values.asNameMap()[j['category']] ??
+            QuizCategory.mixed,
+        score: (j['score'] as num).toInt(),
+        total: (j['total'] as num).toInt(),
+        xp: (j['xp'] as num).toInt(),
+        date: DateTime.parse(j['date'] as String),
+      );
+
+  // ---------------------------------------------------------- block <-> JSON
+
+  Map<String, dynamic> _blockToJson(MessageBlock b) => switch (b) {
+        TextBlock() => {'type': 'text', 'text': b.text},
+        TipBlock() => {'type': 'tip', 'text': b.text},
+        CodeSnippetBlock() => {
             'type': 'code',
-            'code': c.code,
-            if (c.fileName != null) 'fileName': c.fileName,
-            if (c.language != null) 'language': c.language,
+            'code': b.code,
+            if (b.fileName != null) 'fileName': b.fileName,
+            if (b.language != null) 'language': b.language,
           },
-        QuickCheckBlock q => {
-            'type': 'quick_check',
-            'question': q.question,
+        QuickCheckBlock() => {
+            'type': 'quickCheck',
+            'question': b.question,
             'options': [
-              for (final o in q.options)
+              for (final o in b.options)
                 {'label': o.label, if (o.emoji != null) 'emoji': o.emoji},
             ],
-            'correctIndex': q.correctIndex,
-            if (q.explanation != null) 'explanation': q.explanation,
-            'answerBlocks': q.answerBlocks.map(_blockToJson).toList(),
+            'correctIndex': b.correctIndex,
+            if (b.explanation != null) 'explanation': b.explanation,
+            'answerBlocks': [for (final a in b.answerBlocks) _blockToJson(a)],
           },
       };
 
-  static MessageBlock? _blockFrom(Map<String, dynamic> b) {
-    switch (b['type']) {
-      case 'text':
-        return TextBlock(b['text'] as String? ?? '');
+  MessageBlock _blockFrom(Map<String, dynamic> j) {
+    switch (j['type']) {
       case 'tip':
-        return TipBlock(b['text'] as String? ?? '');
+        return TipBlock(j['text'] as String? ?? '');
       case 'code':
         return CodeSnippetBlock(
-          code: b['code'] as String? ?? '',
-          fileName: b['fileName'] as String?,
-          language: b['language'] as String?,
+          code: j['code'] as String? ?? '',
+          fileName: j['fileName'] as String?,
+          language: j['language'] as String?,
         );
-      case 'quick_check':
+      case 'quickCheck':
         return QuickCheckBlock(
-          question: b['question'] as String? ?? '',
+          question: j['question'] as String? ?? '',
           options: [
-            for (final o in (b['options'] as List? ?? const []).cast<Map<String, dynamic>>())
-              QuickCheckOption(o['label'] as String? ?? '', emoji: o['emoji'] as String?),
+            for (final o in (j['options'] as List? ?? const []))
+              QuickCheckOption(
+                (o as Map)['label'] as String? ?? '',
+                emoji: o['emoji'] as String?,
+              ),
           ],
-          correctIndex: (b['correctIndex'] as num?)?.toInt() ?? 0,
-          explanation: b['explanation'] as String?,
+          correctIndex: (j['correctIndex'] as num?)?.toInt() ?? 0,
+          explanation: j['explanation'] as String?,
           answerBlocks: [
-            for (final a in (b['answerBlocks'] as List? ?? const []).cast<Map<String, dynamic>>())
-              if (_blockFrom(a) case final x?) x,
+            for (final a in (j['answerBlocks'] as List? ?? const []))
+              _blockFrom(a as Map<String, dynamic>),
           ],
         );
+      default:
+        return TextBlock(j['text'] as String? ?? '');
     }
-    return null;
   }
 
-  static ChatMessage _messageFrom(Map<String, dynamic> m) {
-    final blocks = [
-      for (final b in (m['blocks'] as List? ?? const []).cast<Map<String, dynamic>>())
-        if (_blockFrom(b) case final x?) x,
-    ];
-    return ChatMessage(
-      id: ChatMessage.newId(),
-      role: m['role'] == 'user' ? MessageRole.user : MessageRole.ai,
-      blocks: blocks.isEmpty ? const [TextBlock('')] : blocks,
-      sentAt: DateTime.tryParse(m['sentAt'] as String? ?? '')?.toLocal() ?? DateTime.now(),
-    );
-  }
-
-  static QuizRecord _recordFrom(Map<String, dynamic> a) => QuizRecord(
-        topicId: a['topicId'] as String,
-        topicTitle: a['topicTitle'] as String? ?? '',
-        category: QuizCategory.values.firstWhere(
-          (c) => c.name.toLowerCase() == (a['category'] as String? ?? '').toLowerCase(),
-          orElse: () => QuizCategory.mixed,
-        ),
-        score: (a['score'] as num).toInt(),
-        total: (a['total'] as num).toInt(),
-        xp: (a['xp'] as num).toInt(),
-        date: DateTime.parse(a['date'] as String).toLocal(),
+  ChatMessage _messageFrom(Map<String, dynamic> j) => ChatMessage(
+        id: ChatMessage.newId(),
+        role: j['role'] == 'user' ? MessageRole.user : MessageRole.ai,
+        blocks: [
+          for (final b in (j['blocks'] as List? ?? const []))
+            _blockFrom(b as Map<String, dynamic>),
+        ],
+        sentAt: DateTime.tryParse(j['sentAt'] as String? ?? '') ?? DateTime.now(),
       );
 }
