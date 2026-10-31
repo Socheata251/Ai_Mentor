@@ -35,27 +35,22 @@ class ChatConversationHistory extends ChangeNotifier {
     notifyListeners();
   }
 
-  void remove(String id) {
-    _conversations.removeWhere((conversation) => conversation.id == id);
-    notifyListeners();
-  }
-
-  /// Chats loaded from the database after sign-in. Chats already here are kept as they are.
-  void addLoaded(List<ChatConversation> loaded) {
-    var changed = false;
-    for (final c in loaded) {
-      if (_conversations.any((x) => x.id == c.id)) continue;
-      _conversations.add(c);
-      changed = true;
-    }
-    if (!changed) return;
+  /// Used when loading from the server (history_sync.dart).
+  void restore(String id, List<ChatMessage> messages) {
+    if (messages.isEmpty || _conversations.any((c) => c.id == id)) return;
+    _conversations.add(ChatConversation(id: id, messages: messages));
     _conversations.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     notifyListeners();
   }
 
-  /// Sign-out: the next student must not see these chats.
+  /// Sign-out: the next student must not see this history.
   void clearAll() {
     _conversations.clear();
+    notifyListeners();
+  }
+
+  void remove(String id) {
+    _conversations.removeWhere((conversation) => conversation.id == id);
     notifyListeners();
   }
 }

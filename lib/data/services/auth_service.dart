@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import '../../core/constants/api_config.dart';
 import '../../core/network/api_client.dart';
 import '../models/user.dart';
@@ -38,7 +36,7 @@ class AuthService {
     );
     final user = _userFrom(data['user'] as Map<String, dynamic>);
     UserSession.instance.signIn(user);
-    unawaited(HistorySync.instance.load()); // bring back saved chats and quizzes
+    HistorySync.instance.load(); // bring the saved history back
     return user;
   }
 
@@ -101,7 +99,6 @@ class AuthService {
     try {
       final data = await _api.get('/api/users/me') as Map<String, dynamic>;
       UserSession.instance.signIn(_userFrom(data['user'] as Map<String, dynamic>));
-      unawaited(HistorySync.instance.load());
       return true;
     } on ApiException catch (e) {
       // Offline at startup: do not throw the student out.
@@ -113,8 +110,8 @@ class AuthService {
 
   Future<void> logout() async {
     final refresh = TokenStorage.instance.refreshToken;
+    HistorySync.instance.clear(); // the next student must not see this history
     UserSession.instance.signOut();
-    HistorySync.instance.clearLocal();
     await TokenStorage.instance.clear();
     if (ApiConfig.useBackend && refresh != null) {
       try {

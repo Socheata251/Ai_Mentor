@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
@@ -9,52 +8,73 @@ import '../../features/quiz/widgets/quiz_history.dart';
 import '../models/message.dart';
 import '../models/quiz.dart';
 import '../repositories/chat_conversation_history.dart';
-import '../repositories/user_session.dart';
 
-/// Saves chats and quizzes to the backend (Supabase) and brings them back after sign-in.
-///
-///   main():          HistorySync.instance.attach();   // once, before runApp
-///   after sign-in:   HistorySync.instance.load();
-///   on logout:       HistorySync.instance.clearLocal();
+/// Saves quiz + chat history to the backend (Supabase) and loads it back after sign-in.
 class HistorySync {
   HistorySync._();
   static final HistorySync instance = HistorySync._();
 
-  final ApiClient _api = ApiClient.instance;
-  final Random _random = Random();
+  final _api = ApiClient.instance;
+  final Map<String, Timer> _chatTimers = {};
+  final Map<String, int> _synced = {}; // chat id -> signature already saved
+  bool _started = false;
+  bool _muted = false; // true while loading / clearing: do not save or delete
 
-  bool _attached = false;
-  bool _muted = false; // true while clearing local data on sign-out
-  Timer? _chatTimer;
+  /// Call once in main(), before runApp.
+  void start() {
+    if (_started || !ApiConfig.useBackend) return;
+    _started = true;
 
-  /// Quizzes waiting to be sent (offline / server asleep). Retried later.
-  final List<_PendingQuiz> _pendingQuizzes = [];
-  bool _flushingQuizzes = false;
+    // Quiz: save every finished quiz.
+    QuizHistory.instance.onAdded = (record, answers) {
+      unawaited(_saveQuiz(record, answers));
+    };
 
-  /// What the server already has: local chat id -> signature of its messages.
-  final Map<String, String> _sentChats = {};
-  bool _syncingChats = false;
-
-  bool get _canSync =>
-      ApiConfig.useBackend && !_muted && UserSession.instance.isSignedIn;
-
-  // ---------------------------------------------------------------- hooks
-
-  /// Start listening for new quizzes and chat changes. Safe to call more than once.
-  void attach() {
-    if (_attached) return;
-    _attached = true;
-    QuizHistory.instance.onAdded = _onQuizAdded;
-    ChatConversationHistory.instance.addListener(_onChatsChanged);
+    // Chat: save a chat 1 second after the last change.
+    ChatConversationHistory.instance.addListener(_onChatChanged);
   }
 
-  /// Sign-out: forget everything of this student (the server keeps it).
-  void clearLocal() {
+  // ---------- LOAD (after sign-in) ----------
+  Future<void> load() async {
+    if (!ApiConfig.useBackend) return;
+    try {
+      final data = await _api.get('/api/history') as Map<String, dynamic>;
+
+      final attempts = (data['attempts'] as List? ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(_recordFrom)
+          .toList();
+
+      _muted = true;
+      try {
+        QuizHistory.instance.replaceAllIfEmpty(attempts);
+        final chats = (data['chats'] as List? ?? const [])
+            .cast<Map<String, dynamic>>();
+        for (final c in chats) {
+          final msgs = (c['messages'] as List? ?? const [])
+              .cast<Map<String, dynamic>>()
+              .map(_messageFrom)
+              .toList();
+          ChatConversationHistory.instance.restore(c['id'] as String, msgs);
+        }
+        _rememberSaved(); // these chats are already on the server
+      } finally {
+        _muted = false;
+      }
+    } catch (e) {
+      debugPrint('HistorySync.load failed: $e');
+    }
+  }
+
+  /// Sign-out: remove the old user's history from memory (not from the server).
+  void clear() {
     _muted = true;
     try {
-      _chatTimer?.cancel();
-      _pendingQuizzes.clear();
-      _sentChats.clear(); // so clearing below is not sent as "deleted"
+      for (final t in _chatTimers.values) {
+        t.cancel();
+      }
+      _chatTimers.clear();
+      _synced.clear();
       QuizHistory.instance.clearAll();
       ChatConversationHistory.instance.clearAll();
     } finally {
@@ -62,226 +82,106 @@ class HistorySync {
     }
   }
 
-  // ---------------------------------------------------------------- quizzes
-
-  void _onQuizAdded(QuizRecord record, List<int?>? answers) {
-    if (!_canSync || answers == null) return; // the server grades the answers
-    _pendingQuizzes.add(_PendingQuiz(
-      topicId: record.topicId,
-      // The server accepts 0..9 or null; the quiz uses -1 when the time ran out.
-      answers: [for (final a in answers) (a == null || a < 0) ? null : a],
-      clientRef: '${record.topicId}-${record.date.millisecondsSinceEpoch}-'
-          '${_random.nextInt(4294967296).toRadixString(36)}',
-    ));
-    _flushQuizzes();
-  }
-
-  Future<void> _flushQuizzes() async {
-    if (_flushingQuizzes || !_canSync) return;
-    _flushingQuizzes = true;
+  // ---------- SAVE QUIZ ----------
+  Future<void> _saveQuiz(QuizRecord r, List<int?>? answers) async {
     try {
-      while (_pendingQuizzes.isNotEmpty && _canSync) {
-        final p = _pendingQuizzes.first;
-        try {
-          await _api.post('/api/quiz/attempts', body: {
-            'topicId': p.topicId,
-            'answers': p.answers,
-            'clientRef': p.clientRef, // same ref = never saved twice
-          });
-          _pendingQuizzes.removeAt(0);
-        } on ApiException catch (e) {
-          if (e.isNetwork || e.status >= 500) break; // try again later
-          debugPrint('HistorySync: dropped a quiz (${e.status} ${e.message})');
-          _pendingQuizzes.removeAt(0); // 4xx: sending again will not help
-        }
-      }
-    } finally {
-      _flushingQuizzes = false;
+      await _api.post('/api/quiz/attempts', body: {
+        'topicId': r.topicId,
+        // one entry per question: option index, null = time ran out
+        'answers': [
+          for (final a in answers ?? const <int?>[]) (a == null || a < 0) ? null : a,
+        ],
+        // same key = same attempt, so a retry never saves it twice
+        'clientRef': '${r.topicId}-${r.date.microsecondsSinceEpoch}',
+      });
+    } catch (e) {
+      debugPrint('HistorySync quiz save failed: $e');
     }
   }
 
-  // ---------------------------------------------------------------- chats
+  // ---------- SAVE / DELETE CHAT ----------
+  int _signature(ChatConversation c) =>
+      Object.hash(c.messages.length, c.updatedAt.microsecondsSinceEpoch);
 
-  void _onChatsChanged() {
-    if (!_canSync) return;
-    _chatTimer?.cancel();
-    _chatTimer = Timer(const Duration(seconds: 2), _syncChats);
+  void _rememberSaved() {
+    for (final c in ChatConversationHistory.instance.conversations) {
+      _synced[c.id] = _signature(c);
+    }
   }
 
-  String _signature(List<ChatMessage> m) =>
-      '${m.length}:${m.last.sentAt.millisecondsSinceEpoch}:${m.last.blocks.length}';
+  void _onChatChanged() {
+    if (_muted) return;
+    final current = ChatConversationHistory.instance.conversations;
 
-  Future<void> _syncChats() async {
-    if (_syncingChats || !_canSync) return;
-    _syncingChats = true;
-    var retry = false;
+    // Deleted in the app -> delete on the server too.
+    final ids = current.map((c) => c.id).toSet();
+    for (final id in _synced.keys.where((id) => !ids.contains(id)).toList()) {
+      _synced.remove(id);
+      _chatTimers.remove(id)?.cancel();
+      unawaited(_deleteChat(id));
+    }
+
+    // New or changed -> save.
+    for (final c in current) {
+      final sig = _signature(c);
+      if (_synced[c.id] == sig) continue;
+      _chatTimers[c.id]?.cancel();
+      _chatTimers[c.id] = Timer(const Duration(seconds: 1), () => _saveChat(c.id));
+    }
+  }
+
+  Future<void> _saveChat(String id) async {
+    ChatConversation? c;
+    for (final x in ChatConversationHistory.instance.conversations) {
+      if (x.id == id) c = x;
+    }
+    if (c == null || !_isUuid(c.id)) return; // the server only accepts UUID ids
     try {
-      final current = ChatConversationHistory.instance.conversations;
-      final ids = {for (final c in current) c.id};
-
-      // Chats the student deleted.
-      for (final id in _sentChats.keys.toList()) {
-        if (ids.contains(id)) continue;
-        try {
-          await _api.delete('/api/chats/${_serverId(id)}');
-          _sentChats.remove(id);
-        } on ApiException catch (e) {
-          if (e.isNetwork || e.status >= 500) {
-            retry = true;
-          } else {
-            _sentChats.remove(id); // already gone / not ours
-          }
-        }
-      }
-
-      // New or changed chats.
-      for (final c in current) {
-        if (c.messages.isEmpty) continue;
-        final sig = _signature(c.messages);
-        if (_sentChats[c.id] == sig) continue;
-        try {
-          await _api.put('/api/history/chats/${_serverId(c.id)}', body: _chatJson(c));
-          _sentChats[c.id] = sig;
-        } on ApiException catch (e) {
-          if (e.isNetwork || e.status >= 500) {
-            retry = true;
-          } else {
-            debugPrint('HistorySync: chat not saved (${e.status} ${e.message})');
-            _sentChats[c.id] = sig; // sending the same data again will not help
-          }
-        }
-      }
-    } finally {
-      _syncingChats = false;
-    }
-    if (retry) {
-      _chatTimer?.cancel();
-      _chatTimer = Timer(const Duration(seconds: 30), _syncChats);
-    }
-  }
-
-  Map<String, dynamic> _chatJson(ChatConversation c) {
-    var title = c.title.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (title.isEmpty) title = 'New chat';
-    if (title.length > 120) title = title.substring(0, 120);
-    // The server keeps at most 60 messages of 30 blocks.
-    final msgs = c.messages.length > 60
-        ? c.messages.sublist(c.messages.length - 60)
-        : c.messages;
-    return {
-      'title': title,
-      'messages': [
-        for (final m in msgs)
-          if (m.blocks.isNotEmpty)
+      final all = c.messages;
+      final msgs = all.length > 60 ? all.sublist(all.length - 60) : all;
+      final title = c.title.trim().isEmpty ? 'New chat' : c.title.trim();
+      await _api.put('/api/history/chats/${c.id}', body: {
+        'title': title.length > 120 ? title.substring(0, 120) : title,
+        'messages': [
+          for (final m in msgs)
             {
               'role': m.role == MessageRole.user ? 'user' : 'ai',
-              'blocks': [for (final b in m.blocks.take(30)) _blockJson(b)],
+              'blocks': m.blocks.map(_blockToJson).toList(),
               'sentAt': m.sentAt.toUtc().toIso8601String(),
             },
-      ],
-    };
-  }
-
-  // ---------------------------------------------------------------- load
-
-  /// Loads the saved chats and quizzes into the history screens.
-  Future<void> load() async {
-    if (!_canSync) return;
-    unawaited(_flushQuizzes());
-    try {
-      final data = await _api.get('/api/history') as Map<String, dynamic>;
-      _applyQuizzes((data['attempts'] as List? ?? const []).cast<Map<String, dynamic>>());
-      _applyChats((data['chats'] as List? ?? const []).cast<Map<String, dynamic>>());
-    } on ApiException catch (e) {
-      debugPrint('HistorySync: could not load history (${e.status} ${e.message})');
+        ],
+      });
+      _synced[c.id] = _signature(c);
     } catch (e) {
-      debugPrint('HistorySync: bad history data: $e');
+      debugPrint('HistorySync chat save failed: $e');
     }
   }
 
-  void _applyQuizzes(List<Map<String, dynamic>> list) {
-    final records = <QuizRecord>[
-      for (final a in list)
-        QuizRecord(
-          topicId: a['topicId'] as String,
-          topicTitle: a['topicTitle'] as String? ?? a['topicId'] as String,
-          category: _category(a['category'] as String?),
-          score: (a['score'] as num).toInt(),
-          total: (a['total'] as num).toInt(),
-          xp: (a['xp'] as num).toInt(),
-          date: DateTime.parse(a['date'] as String).toLocal(),
-        ),
-    ];
-    QuizHistory.instance.replaceAllIfEmpty(records);
-  }
-
-  void _applyChats(List<Map<String, dynamic>> list) {
-    final have = {for (final c in ChatConversationHistory.instance.conversations) c.id};
-    final loaded = <ChatConversation>[];
-    for (final c in list) {
-      final id = c['id'] as String;
-      if (have.contains(id)) continue;
-      final messages = <ChatMessage>[
-        for (final m in (c['messages'] as List? ?? const []).cast<Map<String, dynamic>>())
-          ChatMessage(
-            id: ChatMessage.newId(),
-            role: m['role'] == 'user' ? MessageRole.user : MessageRole.ai,
-            blocks: [
-              for (final b in (m['blocks'] as List? ?? const []).cast<Map<String, dynamic>>())
-                if (_blockFrom(b) case final block?) block,
-            ],
-            sentAt: DateTime.parse(m['sentAt'] as String).toLocal(),
-          ),
-      ];
-      if (messages.isEmpty || !messages.any((m) => m.role == MessageRole.user)) continue;
-      loaded.add(ChatConversation(id: id, messages: messages));
-      _sentChats[id] = _signature(messages); // already on the server: do not send back
+  Future<void> _deleteChat(String id) async {
+    if (!_isUuid(id)) return;
+    try {
+      await _api.delete('/api/chats/$id');
+    } catch (e) {
+      debugPrint('HistorySync chat delete failed: $e');
     }
-    ChatConversationHistory.instance.addLoaded(loaded);
   }
 
-  // ---------------------------------------------------------------- helpers
-
-  static QuizCategory _category(String? name) {
-    for (final c in QuizCategory.values) {
-      if (c.name == name) return c;
-    }
-    return QuizCategory.mixed;
-  }
-
-  static final RegExp _uuidPattern = RegExp(
+  static final _uuid = RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
     caseSensitive: false,
   );
+  static bool _isUuid(String s) => _uuid.hasMatch(s);
 
-  /// The server wants a UUID for every chat. A local id that is not one is turned into
-  /// a UUID that is always the same for that id, so saving again updates the same chat.
-  String _serverId(String localId) {
-    if (_uuidPattern.hasMatch(localId)) return localId.toLowerCase();
-    const mults = [31, 37, 41, 43];
-    const seeds = [7, 11, 13, 17];
-    final hex = StringBuffer();
-    for (var k = 0; k < 4; k++) {
-      var h = seeds[k];
-      for (final unit in localId.codeUnits) {
-        h = (h * mults[k] + unit) & 0xffffffff;
-      }
-      hex.write(h.toRadixString(16).padLeft(8, '0'));
-    }
-    final s = hex.toString(); // 32 hex characters
-    return '${s.substring(0, 8)}-${s.substring(8, 12)}-4${s.substring(13, 16)}-'
-        '8${s.substring(17, 20)}-${s.substring(20, 32)}';
-  }
-
-  Map<String, dynamic> _blockJson(MessageBlock b) => switch (b) {
+  // ---------- JSON <-> models ----------
+  static Map<String, dynamic> _blockToJson(MessageBlock b) => switch (b) {
         TextBlock t => {'type': 'text', 'text': t.text},
+        TipBlock t => {'type': 'tip', 'text': t.text},
         CodeSnippetBlock c => {
             'type': 'code',
             'code': c.code,
             if (c.fileName != null) 'fileName': c.fileName,
             if (c.language != null) 'language': c.language,
           },
-        TipBlock t => {'type': 'tip', 'text': t.text},
         QuickCheckBlock q => {
             'type': 'quick_check',
             'question': q.question,
@@ -291,11 +191,11 @@ class HistorySync {
             ],
             'correctIndex': q.correctIndex,
             if (q.explanation != null) 'explanation': q.explanation,
-            'answerBlocks': [for (final a in q.answerBlocks) _blockJson(a)],
+            'answerBlocks': q.answerBlocks.map(_blockToJson).toList(),
           },
       };
 
-  MessageBlock? _blockFrom(Map<String, dynamic> b) {
+  static MessageBlock? _blockFrom(Map<String, dynamic> b) {
     switch (b['type']) {
       case 'text':
         return TextBlock(b['text'] as String? ?? '');
@@ -318,17 +218,36 @@ class HistorySync {
           explanation: b['explanation'] as String?,
           answerBlocks: [
             for (final a in (b['answerBlocks'] as List? ?? const []).cast<Map<String, dynamic>>())
-              if (_blockFrom(a) case final block?) block,
+              if (_blockFrom(a) case final x?) x,
           ],
         );
     }
-    return null; // unknown block type: skip it
+    return null;
   }
-}
 
-class _PendingQuiz {
-  _PendingQuiz({required this.topicId, required this.answers, required this.clientRef});
-  final String topicId;
-  final List<int?> answers;
-  final String clientRef;
+  static ChatMessage _messageFrom(Map<String, dynamic> m) {
+    final blocks = [
+      for (final b in (m['blocks'] as List? ?? const []).cast<Map<String, dynamic>>())
+        if (_blockFrom(b) case final x?) x,
+    ];
+    return ChatMessage(
+      id: ChatMessage.newId(),
+      role: m['role'] == 'user' ? MessageRole.user : MessageRole.ai,
+      blocks: blocks.isEmpty ? const [TextBlock('')] : blocks,
+      sentAt: DateTime.tryParse(m['sentAt'] as String? ?? '')?.toLocal() ?? DateTime.now(),
+    );
+  }
+
+  static QuizRecord _recordFrom(Map<String, dynamic> a) => QuizRecord(
+        topicId: a['topicId'] as String,
+        topicTitle: a['topicTitle'] as String? ?? '',
+        category: QuizCategory.values.firstWhere(
+          (c) => c.name.toLowerCase() == (a['category'] as String? ?? '').toLowerCase(),
+          orElse: () => QuizCategory.mixed,
+        ),
+        score: (a['score'] as num).toInt(),
+        total: (a['total'] as num).toInt(),
+        xp: (a['xp'] as num).toInt(),
+        date: DateTime.parse(a['date'] as String).toLocal(),
+      );
 }

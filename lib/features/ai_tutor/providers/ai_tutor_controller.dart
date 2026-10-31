@@ -2,7 +2,6 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 
-import '../../../core/utils/uuid.dart';
 import '../../../data/models/message.dart';
 import '../../../data/repositories/chat_conversation_history.dart';
 import '../../../data/repositories/chat_prompt_history.dart';
@@ -17,7 +16,7 @@ class AiTutorController extends ChangeNotifier {
     String? conversationId,
   }) : service = service ?? AiServices.current,
        _messages = List.of(initial),
-       conversationId = conversationId ?? newUuid();
+       conversationId = conversationId ?? ChatMessage.newUuid();
 
   final AiService service;
   final String conversationId;

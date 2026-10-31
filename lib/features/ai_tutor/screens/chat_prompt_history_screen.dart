@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/router/smooth_page_route.dart';
 import '../../../core/constants/api_config.dart';
+import '../../../core/router/smooth_page_route.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../data/models/quiz.dart';
@@ -986,7 +986,9 @@ class _StorageNote extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            ApiConfig.useBackend ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+            ApiConfig.useBackend
+                ? Icons.cloud_done_outlined
+                : Icons.cloud_off_outlined,
             size: 20,
             color: c.tileIcon,
           ),
@@ -994,10 +996,9 @@ class _StorageNote extends StatelessWidget {
           Expanded(
             child: Text(
               ApiConfig.useBackend
-                  ? 'Your chats and quizzes are saved to your account, so they '
-                      'are still here next time you sign in.'
+                  ? 'Your history is saved to your account and loads when you sign in.'
                   : 'History is kept on this device while the app is open and '
-                      'resets when you close it.',
+                        'resets when you close it.',
               style: text.bodySmall,
             ),
           ),
