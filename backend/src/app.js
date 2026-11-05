@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cors from 'cors';
@@ -23,7 +24,7 @@ import { scheduleRouter } from './routes/schedule.js';
 import { settingsRouter } from './routes/settings.js';
 import { usersRouter } from './routes/users.js';
 
-// backend/public/ holds files people can download (for example ai-mentor.apk).
+// backend/public/ holds files people can download (for example ilearncode.apk).
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../public');
 
 export function createApp() {
@@ -55,12 +56,17 @@ export function createApp() {
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/admin', adminRouter);
 
-  // APK download: https://ilearncode.onrender.com/download/ai-mentor.apk
-  app.get('/download/ai-mentor.apk', (_req, res, next) => {
-    res.download(path.join(publicDir, 'ai-mentor.apk'), 'ai-mentor.apk', (err) => {
-      if (err && !res.headersSent) next(); // file missing -> normal 404
+  // APK download: https://ilearncode.onrender.com/download/ilearncode.apk
+  // (the old name ai-mentor.apk keeps working so existing links do not break)
+  for (const name of ['ilearncode.apk', 'ai-mentor.apk']) {
+    app.get(`/download/${name}`, (_req, res, next) => {
+      const file = ['ilearncode.apk', 'ai-mentor.apk'].find((f) => fs.existsSync(path.join(publicDir, f)));
+      if (!file) return next(); // no APK uploaded -> normal 404
+      res.download(path.join(publicDir, file), 'ilearncode.apk', (err) => {
+        if (err && !res.headersSent) next();
+      });
     });
-  });
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);

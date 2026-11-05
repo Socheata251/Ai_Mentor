@@ -9,13 +9,13 @@ import 'package:flutter/foundation.dart';
 class SettingsController extends ChangeNotifier {
   // ---- Options shown in the pickers (edit freely) ----
   static const languages = ['English', 'Khmer'];
-  static const aiModels = ['IT Mentor v2', 'IT Mentor v2 Fast', 'IT Mentor v1'];
+  static const aiModels = ['iLearnCode v2', 'iLearnCode v2 Fast', 'iLearnCode v1'];
   static const codeFormats = ['Auto', '2 spaces', '4 spaces', 'Tabs'];
 
   // ---- Current values (defaults match your design) ----
   String language = 'Khmer';
   bool hintsFirst = true;
-  String aiModel = 'IT Mentor v2';
+  String aiModel = 'iLearnCode v2';
   String codeFormat = 'Auto';
 
   void setLanguage(String v) {

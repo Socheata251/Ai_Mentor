@@ -100,7 +100,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             children: [
               Text('Your Progress', style: theme.textTheme.titleMedium),
               Text(
-                'IT Mentor AI · Semester 3 & 4',
+                'iLearnCode · Semester 1–8',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: colors.textMuted,
                   fontSize: 9,

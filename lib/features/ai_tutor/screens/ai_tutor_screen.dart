@@ -387,7 +387,7 @@ class _ChatTitle extends StatelessWidget {
           children: [
             Flexible(
               child: Text(
-                'IT Mentor AI',
+                'iLearnCode',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: t.titleMedium?.copyWith(

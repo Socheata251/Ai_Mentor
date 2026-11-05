@@ -1,4 +1,4 @@
-# Astra Learn backend
+# iLearnCode backend
 
 Node.js 20+ · Express · PostgreSQL · JWT + refresh tokens · Docker.
 

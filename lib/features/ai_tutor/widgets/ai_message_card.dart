@@ -86,7 +86,7 @@ class AiMessageCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'IT Mentor AI',
+                    'iLearnCode',
                     style: t.labelMedium!.copyWith(
                       fontWeight: FontWeight.w800,
                       color: a.color,

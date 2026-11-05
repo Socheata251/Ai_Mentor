@@ -55,7 +55,7 @@ Ask the project owner for ONE of these:
 
 1. Go to supabase.com and sign in.
 2. Click **New organization** (Personal, Free plan), then **New project**.
-3. Name it `ai-mentor`, set a database password (letters and numbers only), choose the closest region, and create it. Wait 1 to 2 minutes.
+3. Name it `ilearncode`, set a database password (letters and numbers only), choose the closest region, and create it. Wait 1 to 2 minutes.
 4. Click **Connect** → **Direct** tab → Type **URI** → Method **Session pooler**, and copy the string.
 5. You WILL run `npm run db:init` in step 4 to create the tables.
 

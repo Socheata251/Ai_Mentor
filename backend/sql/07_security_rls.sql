@@ -1,4 +1,4 @@
--- iLearnCode (Ai_Mentor) database schema - PostgreSQL 14+
+-- iLearnCode database schema - PostgreSQL 14+
 -- Relationships: 1:1 users-user_settings | 1:N users-conversations-messages
 --                N:M users-courses (user_course_progress)
 
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
   user_id      UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   language     TEXT NOT NULL DEFAULT 'Khmer' CHECK (language IN ('English','Khmer')),
   hints_first  BOOLEAN NOT NULL DEFAULT true,
-  ai_model     TEXT NOT NULL DEFAULT 'IT Mentor v2',
+  ai_model     TEXT NOT NULL DEFAULT 'iLearnCode v2',
   code_format  TEXT NOT NULL DEFAULT 'Auto' CHECK (code_format IN ('Auto','2 spaces','4 spaces','Tabs')),
   dark_mode    TEXT NOT NULL DEFAULT 'system' CHECK (dark_mode IN ('system','light','dark')),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()

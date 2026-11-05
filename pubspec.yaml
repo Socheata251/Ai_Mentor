@@ -1,5 +1,5 @@
 name: mentor
-description: "A new Flutter project."
+description: "iLearnCode - AI study companion for CS students."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -98,7 +98,8 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/logo.png"
+  remove_alpha_ios: true
+  image_path: "assets/icon/app_icon.png"
   min_sdk_android: 21
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/logo.png"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"

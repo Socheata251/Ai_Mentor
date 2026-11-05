@@ -36,11 +36,11 @@ Future<void> main() async {
 
   // Stay signed in between launches.
   final signedIn = await AuthService.instance.restoreSession();
-  runApp(AImentor(signedIn: signedIn));
+  runApp(ILearnCodeApp(signedIn: signedIn));
 }
 
-class AImentor extends StatelessWidget {
-  const AImentor({super.key, this.signedIn = false});
+class ILearnCodeApp extends StatelessWidget {
+  const ILearnCodeApp({super.key, this.signedIn = false});
 
   final bool signedIn;
 

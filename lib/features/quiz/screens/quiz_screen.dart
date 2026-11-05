@@ -437,7 +437,7 @@ class _QuestionCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'IT MENTOR AI • ${quiz.topic.title.toUpperCase()}',
+                  'ILEARNCODE • ${quiz.topic.title.toUpperCase()}',
                   style: text.labelSmall?.copyWith(color: c.gradientStart),
                   textAlign: TextAlign.center,
                 ),

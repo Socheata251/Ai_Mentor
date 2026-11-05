@@ -15,7 +15,7 @@ import '../../../core/widgets/app_shell.dart';
 const _accent = Color(0xFFB4521F);
 
 /// Footer text. Edit when you ship a new build.
-const kAppVersionLabel = 'IT Mentor AI • Version 2.4 (iOS Build 104)';
+const kAppVersionLabel = 'iLearnCode • Version 1.0.0';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({
@@ -290,7 +290,7 @@ class SettingsScreen extends StatelessWidget {
 // Pieces
 // =====================================================================
 
-/// ☰ menu button + title + "IT MENTOR AI" pill.
+/// ☰ menu button + title + "ILEARNCODE" pill.
 class _Header extends StatelessWidget {
   const _Header();
 
@@ -334,7 +334,7 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(width: 7),
               Text(
-                'IT MENTOR AI',
+                'ILEARNCODE',
                 style: TextStyle(
                   fontSize: 9.5,
                   fontWeight: FontWeight.w700,
