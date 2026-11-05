@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
@@ -20,6 +22,9 @@ import { quizRouter } from './routes/quiz.js';
 import { scheduleRouter } from './routes/schedule.js';
 import { settingsRouter } from './routes/settings.js';
 import { usersRouter } from './routes/users.js';
+
+// backend/public/ holds files people can download (for example ai-mentor.apk).
+const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../public');
 
 export function createApp() {
   const app = express();
@@ -49,6 +54,13 @@ export function createApp() {
   app.use('/api/progress', progressRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/admin', adminRouter);
+
+  // APK download: https://ilearncode.onrender.com/download/ai-mentor.apk
+  app.get('/download/ai-mentor.apk', (_req, res, next) => {
+    res.download(path.join(publicDir, 'ai-mentor.apk'), 'ai-mentor.apk', (err) => {
+      if (err && !res.headersSent) next(); // file missing -> normal 404
+    });
+  });
 
   app.use(notFoundHandler);
   app.use(errorHandler);
